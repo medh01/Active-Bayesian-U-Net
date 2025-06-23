@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
 
-from dataLoading                import get_loaders_active
+from data_loading                import get_loaders_active
 from bayesian_unet              import BayesianUNet
 from acquisition_functions      import random_score, entropy, BALD, committee_kl_divergence, committee_js_divergence
 from active_learning_utils      import reset_data, create_active_learning_pools, move_images_with_dict, score_unlabeled_pool
