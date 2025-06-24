@@ -16,16 +16,12 @@ This implementation is based on the research paper [Active Learning with Bayesia
 
 ## Table of Contents
 
-- [Prerequisites](#prerequisites)
 - [Repository Structure](#repository-structure)
-- [Kaggle Environment](#kaggle-environment)
-- [Example `requirements.txt`](#example-requirementstxt)
+- [Dependency Graph](#dependency-graph)
 - [Data Preparation](#data-preparation)
-- [Training](#training)
-- [Active Learning](#active-learning)
-- [Evaluation](#evaluation)
-- [Contributing](#contributing)
-- [License](#license)
+- [Prerequisites](#prerequisites)
+- [Running the Project on kaggle](#Running-the-Project-on-kaggle)
+- [Implementation Details](#implementation-details)
 - [Contact](#contact)
 
 ## Repository Structure
@@ -74,9 +70,9 @@ We merged these three binary masks into a single RGB mask so that each class is 
 
 Below is a table showing an example blastocyst image, its three binary masks (ICM, TE, ZP), and the combined RGB mask:
 
-|         Original Image          |       ICM Mask        |       TE Mask        |       ZP Mask        |                   RGB Mask                    |
-|:-------------------------------:|:---------------------:|:--------------------:|:--------------------:|:---------------------------------------------:|
-| ![](examples/images/Blast_PCRM_1201754 D5.BMP) | ![](examples/GT_ICM/Blast_PCRM_1201754 D5 ICM_Mask.bmp) | ![](examples/GT_TE/Blast_PCRM_1201754 D5 TE_Mask.bmp) | ![](examples/GT_ZP/Blast_PCRM_1201754 D5 ZP_Mask.bmp) | ![](examples/masks/Blast_PCRM_1201754 D5.png) |
+|           Original Image            |                   ICM Mask                   |                   TE Mask                   |                      ZP Mask                      |                   RGB Mask                    |
+|:-----------------------------------:|:--------------------------------------------:|:-------------------------------------------:|:-------------------------------------------------:|:---------------------------------------------:|
+| ![](docs/Blast_PCRM_1201754 D5.png) | ![](docs/Blast_PCRM_1201754 D5 ICM_Mask.png) | ![](docs/Blast_PCRM_1201754 D5 TE_Mask.png) | ![](docs/Blast_PCRM_1201754 D5 ZP_Mask.png) | ![](examples/masks/Blast_PCRM_1201754 D5.png) |
 
 
 ## Prerequisites
@@ -85,7 +81,7 @@ Below is a table showing an example blastocyst image, its three binary masks (IC
 - Core Packages: torch,matplotlib, tqdm, numpy, Pillow, pandas
 > *Note: Check requirements.txt*
 
-## Getting Started / Running the Project on kaggle
+## Running the Project on kaggle
 Follow these steps in a Kaggle notebook to reproduce the experiments:
 
 1. **Import the Dataset**  
