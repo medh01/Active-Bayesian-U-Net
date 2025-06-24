@@ -85,9 +85,93 @@ Below is a table showing an example blastocyst image, its three binary masks (IC
 - Core Packages: torch,matplotlib, tqdm, numpy, Pillow, pandas
 > *Note: Check requirements.txt*
 
-## Getting Started / Running the Project
+## Getting Started / Running the Project on kaggle
+Follow these steps in a Kaggle notebook to reproduce the experiments:
 
+1. **Import the Dataset**  
+   - In your Kaggle notebook, click **Add data** and select the `Blastocyst dataset`.
 
+2. **Clone the GitHub Repository**  
+    ```bash
+    !git clone https://github.com/your-username/Active-Bayesian-U-Net.git
+
+3. **Install Dependencies**
+    ```bash
+   %pip install -r Active-Bayesian-U-Net/requirements.txt
+
+4. Prepare the Data Directory
+   - Create a local data folder and copy images & masks from the Kaggle dataset
+    
+   ```bash
+    # ← edit this to match your dataset’s folder under /kaggle/input
+    DATASET_PATH="<PATH_TO_EMBRYO_DATASET>"   # e.g. /kaggle/input/embryo-images-and-masks
+
+    # where you want to store a local copy
+    WORKING_DATA="/kaggle/working/data"
+
+    # create the directory
+    mkdir -p "$WORKING_DATA"
+
+    # copy images & masks
+    cp -r "$DATASET_PATH/images" "$WORKING_DATA/"
+    cp -r "$DATASET_PATH/masks"  "$WORKING_DATA/"
+
+5. Add the Source to Your Python Path
+    ```bash
+   import sys
+    sys.path.append("/kaggle/working/Active-Bayesian-U-Net/src")
+
+6. Launch an active learning loop
+    - Feel free to adjust any of the parameters below to suit your needs
+    ```Python
+   from active_learning_loop import active_learning_loop
+
+    df = active_learning_loop(
+        BASE_DIR         ="/kaggle/working/data",
+        LABEL_SPLIT_RATIO =0.1,
+        TEST_SPLIT_RATIO  =0.2,
+        sample_size       =10,
+        acquisition_type  ="random",
+        mc_runs           =5,
+        num_epochs        =5,
+        batch_size        =4,
+        lr                =1e-3,
+        loop_iterations   =None,
+        seed              =0,
+        device            ="cuda"
+    )
+
+7. Run experiments to compare different acquisition functions
+- Feel free tro adjust any of the parameters below to suit your needs
+    ```Python
+   from active_learning_utils import (
+    collect_active_learning_results,
+    plot_active_learning_results
+    )
+   
+    # 1) Gather results
+    df = collect_active_learning_results(
+        BASE_DIR='/kaggle/working/data',
+        seeds=[0,1,2,3,4],
+        acquisition_funcs=["random","entropy","bald","kl-divergence","js-divergence"],
+        label_split_ratio=0.1,
+        test_split_ratio=0.2,
+        sample_size=10,
+        mc_runs=5,
+        num_epochs=5,
+        batch_size=4,
+        lr=1e-3,
+        loop_iterations=None,
+        device='cuda'
+    )
+
+    # 2) Visualise
+    plot_active_learning_results(
+       df,
+       ylim=(0, 1),
+       figsize=(12, 8),
+       markers=None
+    )
 
 ## Implementation Details
 
