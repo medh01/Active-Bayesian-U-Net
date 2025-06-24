@@ -1,0 +1,6 @@
+torch==2.6.0+cu124
+matplotlib==3.7.2
+tqdm==4.67.1
+numpy==1.26.4
+Pillow==11.1.0
+pandas==2.2.3
