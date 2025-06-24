@@ -290,19 +290,19 @@ $$
 
 ##### 3. BALD
 
-1. **Predictive entropy**
+##### 1. Predictive entropy**
 
 $$
 H\bigl[\bar p_i(x,y)\bigr] = -\sum_{c=1}^C \bar p_{i,c}(x,y)\,\ln \bar p_{i,c}(x,y).
 $$
 
-##### 3. Expected Entropy
+##### 2. Expected Entropy
 
 The expected entropy over the T MC passes is:
 
 $$\mathbb{E}\left[H\left[p^{(t)}(i)(x,y)\right]\right] = \frac{1}{T} \sum_{t=1}^T \left[ -\sum_{c=1}^C p^{(t)}(i,c)(x,y) \ln p^{(t)}(i,c)(x,y) \right]$$
 
-##### 4. BALD Map & Score
+##### 3. BALD Map & Score
 
 The pixel-wise BALD (Bayesian Active Learning by Disagreement) map is:
 
@@ -338,6 +338,10 @@ $$\mathrm{JS} = \frac{1}{2} \sum_{c=1}^C p_{c} + \frac{1}{2} \sum_{c=1}^C Q_{c}$
 Finally, the image-level JS score is:
 $$s_i = \frac{1}{H\,W} \sum_{x=1}^H \sum_{y=1}^W \mathrm{JS}_i(x,y)$$
 
+## Results
+<p align="center">
+  <img src="./docs/myplot.png" alt="Dice Coefficient" width="80%"/>
+</p>
 
 ## Contact
 
