@@ -255,9 +255,7 @@ $$
 
 - The softmax probability on pass \(t\) is then:
 
-$$
-    p^{(t)}_{i,c}(x,y) = \frac{\exp\bigl(z^{(t)}_{i,c}(x,y)\bigr)} {\sum_{k=1}^C \exp\bigl(z^{(t)}_{i,k}(x,y)\bigr)}.
-$$
+$$p^{(t)}(i,c)(x,y) = \frac{\exp\left(z^{(t)}(i,c)(x,y)\right)}{\sum_{k=1}^C \exp\left(z^{(t)}(i,k)(x,y)\right)}$$
 ---
 
 ##### 1. Random sampling
@@ -300,9 +298,9 @@ $$
 
 ##### 3. Expected Entropy
 
-The expected entropy over the $T$ MC passes is:
+The expected entropy over the T MC passes is:
 
-$$\mathbb{E}_t\bigl[H\bigl(p^{(t)}_i(x,y)\bigr)\bigr] = \frac{1}{T} \sum_{t=1}^T \Bigl[ -\sum_{c=1}^C p^{(t)}_{i,c}(x,y)\,\ln p^{(t)}_{i,c}(x,y) \Bigr]$$
+$$\mathbb{E}\left[H\left[p^{(t)}(i)(x,y)\right]\right] = \frac{1}{T} \sum_{t=1}^T \left[ -\sum_{c=1}^C p^{(t)}(i,c)(x,y) \ln p^{(t)}(i,c)(x,y) \right]$$
 
 ##### 4. BALD Map & Score
 
@@ -320,10 +318,9 @@ $$s_i = \frac{1}{H\,W} \sum_{x=1}^H \sum_{y=1}^W \mathrm{BALD}_i(x,y)$$
    $$\bar p_{i,c}(x,y) = \frac{1}{T}\sum_{t=1}^T p^{(t)}_{i,c}(x,y)$$
 
 2. **Deterministic prediction** (no dropout):
-   $$p^*_{i,c}(x,y) = \frac{\exp\!\bigl(z^{(\mathrm{eval})}_{i,c}(x,y)\bigr)}{\sum_{k=1}^C \exp\!\bigl(z^{(\mathrm{eval})}_{i,k}(x,y)\bigr)}$$
-
+  $\mathbb{E}\big[H\big[p^{(t)}(i)(x,y)\big]\big] = \frac{1}{T} \sum_{t=1}^T \Big[ -\sum_{c=1}^C p^{(t)}(i,c)(x,y) \ln p^{(t)}(i,c)(x,y) \Big]$
 3. **KL map & score**:
-   $$\mathrm{KL}_i(x,y) = \sum_{c=1}^C p^*_{i,c}(x,y)\, \ln\!\frac{p^*_{i,c}(x,y)}{\bar p_{i,c}(x,y)}$$
+  $KL_i = \sum_{c=1}^C p_{ic} \ln(p_{ic} / q_{ic})$
    
    $$s_i = \frac{1}{H\,W} \sum_{x=1}^H \sum_{y=1}^W \mathrm{KL}_i(x,y)$$
 
@@ -333,10 +330,10 @@ Let:
 $$Q_{i,c}(x,y) = \bar p_{i,c}(x,y), \quad p^*_{i,c}(x,y)$$
 
 Define the mixture:
-$$M_{i,c}(x,y) = \tfrac12\Bigl(p^*_{i,c}(x,y) + Q_{i,c}(x,y)\Bigr)$$
+$$M_{ic}(x,y) = \frac{1}{2}(p_{ic}^*(x,y) + Q_{ic}(x,y))$$
 
 The per-pixel JS divergence is:
-$$\mathrm{JS}_i(x,y) = \tfrac12 \sum_{c=1}^C p^*_{i,c}(x,y)\, \ln\!\frac{p^*_{i,c}(x,y)}{M_{i,c}(x,y)} + \tfrac12 \sum_{c=1}^C Q_{i,c}(x,y)\, \ln\!\frac{Q_{i,c}(x,y)}{M_{i,c}(x,y)}$$
+$$\mathrm{JS} = \frac{1}{2} \sum_{c=1}^C p_{c} + \frac{1}{2} \sum_{c=1}^C Q_{c}$$
 
 Finally, the image-level JS score is:
 $$s_i = \frac{1}{H\,W} \sum_{x=1}^H \sum_{y=1}^W \mathrm{JS}_i(x,y)$$
