@@ -28,6 +28,8 @@ This implementation is based on the research paper [Active Learning with Bayesia
 
 ```
 Active-Bayesian-U-Net/
+└── docs/                         # contains images for the README.md file
+└── examples/                     # contains examples of images and their masks
 └── src/ 
     ├── mask_converter.py        # To Convert the 3 binary masks (ICM, TE, ZP) into an RGB mask                     
     ├── active_learning_loop.py  # Active Learning Pipeline implementation 
@@ -38,8 +40,10 @@ Active-Bayesian-U-Net/
     ├── train_eval.py            # train and evaluate one epoch
     ├── metrics.py               # Evaluation metrics (Dice, accuracy)
     ├── data_loading.py          # Preprocessing and Loading the Blastocyst Data
+    
 └── .gitignore
 └── requirements.txt
+└── README.md
 
 ```
 
@@ -239,18 +243,23 @@ $$
 
 ##### Notation
 
-- \(i = 1, \dots, B\) indexes the **image** in a batch of size \(B\).  
-- \(c = 1, \dots, C\) indexes the **class** channel (\(C=4\) in your case).  
-- \(t = 1, \dots, T\) indexes the **Monte Carlo** forward pass (dropout sample).  
-- \((x,y)\) denotes spatial pixel coordinates.  
-- \(z^{(t)}_{i,c}(x,y)\) is the logit for image \(i\), class \(c\), pixel \((x,y)\) on pass \(t\).  
-- The softmax probability on pass \(t\) is  
-  $$
-  p^{(t)}_{i,c}(x,y)
-  = \frac{\exp\!\bigl(z^{(t)}_{i,c}(x,y)\bigr)}
-         {\sum_{k=1}^C \exp\!\bigl(z^{(t)}_{i,k}(x,y)\bigr)}.
-  $$
+- (i = 1, ..... , B\) indexes the **image** in a batch of size \(B\).
 
+- \(c = 1, ..... , C\) indexes the **class** channel (C = 4) in your case).
+
+- \(t = 1, ..... , T\) indexes the **Monte Carlo** forward pass (dropout sample).
+
+- (x,y) denotes spatial pixel coordinates.
+
+- $$z^{(t)}_{i,c}(x,y)$$ is the logit for image \(i\), class \(c\), pixel \((x,y)\) on pass \(t\).
+
+- The softmax probability on pass \(t\) is then:
+
+$$
+    p^{(t)}_{i,c}(x,y)
+    = \frac{\exp\bigl(z^{(t)}_{i,c}(x,y)\bigr)}
+           {\sum_{k=1}^C \exp\bigl(z^{(t)}_{i,k}(x,y)\bigr)}.
+$$
 ---
 
 ##### 1. Random sampling
@@ -263,51 +272,54 @@ $$
 
 ##### 2. Entropy sampling
 
-1. **Mean predictive**  
-   $$
-   \bar p_{i,c}(x,y)
-   = \frac{1}{T} \sum_{t=1}^T p^{(t)}_{i,c}(x,y).
-   $$
-2. **Entropy map**  
-   $$
-   H_i(x,y)
-   = -\sum_{c=1}^C \bar p_{i,c}(x,y)\,\ln \bar p_{i,c}(x,y).
-   $$
-3. **Image score**  
-   $$
-   s_i
-   = \frac{1}{H\,W} \sum_{x=1}^H \sum_{y=1}^W H_i(x,y).
-   $$
+1. **Mean predictive**
+
+$$
+\bar p_{i,c}(x,y) = \frac{1}{T} \sum_{t=1}^T p^{(t)}_{i,c}(x,y).
+$$
+
+2. **Entropy map**
+
+$$
+H_i(x,y) = -\sum_{c=1}^C \bar p_{i,c}(x,y)\,\ln \bar p_{i,c}(x,y).
+$$
+
+3. **Image score**
+
+$$
+s_i = \frac{1}{H\,W} \sum_{x=1}^H \sum_{y=1}^W H_i(x,y).
+$$
 
 ---
 
 ##### 3. BALD
 
-1. **Predictive entropy**  
-   $$
-   H\bigl[\bar p_i(x,y)\bigr]
-   = -\sum_{c=1}^C \bar p_{i,c}(x,y)\,\ln \bar p_{i,c}(x,y).
-   $$
-2. **Expected entropy**  
-   $$
-   \mathbb{E}_t\bigl[H(p^{(t)}_i(x,y))\bigr]
-   = \frac{1}{T} \sum_{t=1}^T \Bigl[-\sum_{c=1}^C 
+1. **Predictive entropy**
+
+$$
+H\bigl[\bar p_i(x,y)\bigr] = -\sum_{c=1}^C \bar p_{i,c}(x,y)\,\ln \bar p_{i,c}(x,y).
+$$
+
+2. **Expected entropy**
+
+$$
+\mathbb{E}_t\bigl[H(p^{(t)}_i(x,y))\bigr]= \frac{1}{T} \sum_{t=1}^T \Bigl[-\sum_{c=1}^C 
      p^{(t)}_{i,c}(x,y)\,\ln p^{(t)}_{i,c}(x,y)\Bigr].
-   $$
-3. **BALD map & score**  
-   $$
-   \mathrm{BALD}_i(x,y)
-   = H\bigl[\bar p_i(x,y)\bigr]
-   - \mathbb{E}_t\bigl[H(p^{(t)}_i(x,y))\bigr],
-   \quad
-   s_i = \frac{1}{H\,W}\sum_{x,y}\mathrm{BALD}_i(x,y).
-   $$
+$$
+
+3. **BALD map & score**
+
+$$
+\mathrm{BALD}_i(x,y) = H\bigl[\bar p_i(x,y)\bigr] - \mathbb{E}_t\bigl[H(p^{(t)}_i(x,y))\bigr],
+\quad
+s_i = \frac{1}{H\,W}\sum_{x,y}\mathrm{BALD}_i(x,y).
+$$
 
 ---
 
 ##### 4. Committee KL-divergence
 
-1. **Posterior mean**  
+1. **Posterior mean** 
    \(\bar p_{i,c}(x,y)\) as above.  
 2. **Deterministic prediction**  
    $$
