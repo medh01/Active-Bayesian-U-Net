@@ -70,9 +70,9 @@ We merged these three binary masks into a single RGB mask so that each class is 
 
 Below is a table showing an example blastocyst image, its three binary masks (ICM, TE, ZP), and the combined RGB mask:
 
-|           Original Image            |                   ICM Mask                   |                   TE Mask                   |                      ZP Mask                      |                   RGB Mask                    |
-|:-----------------------------------:|:--------------------------------------------:|:-------------------------------------------:|:-------------------------------------------------:|:---------------------------------------------:|
-| ![](docs/Blast_PCRM_1201754 D5.png) | ![](docs/Blast_PCRM_1201754 D5 ICM_Mask.png) | ![](docs/Blast_PCRM_1201754 D5 TE_Mask.png) | ![](docs/Blast_PCRM_1201754 D5 ZP_Mask.png) | ![](examples/masks/Blast_PCRM_1201754 D5.png) |
+<p align="center">
+  <img src="./docs/table.png" alt="table" width="80%"/>
+</p>
 
 
 ## Prerequisites
