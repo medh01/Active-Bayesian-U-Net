@@ -1,63 +1,95 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-
 from active_learning_loop import active_learning_loop
 
-# 1. Define your seeds and parameters
-SEEDS = [0, 1, 2, 3, 4]   # 5 independent runs
-ACQ_FUNCS = ["random","entropy","bald","kl-divergence","js-divergence"]
+def collect_active_learning_results(
+    BASE_DIR,
+    seeds,
+    acquisition_funcs,
+    label_split_ratio=0.1,
+    test_split_ratio=0.2,
+    sample_size=10,
+    mc_runs=5,
+    num_epochs=5,
+    batch_size=4,
+    lr=1e-3,
+    loop_iterations=None,
+    device="cuda"
+):
+    all_runs = []
+    for seed in seeds:
+        for acq in acquisition_funcs:
+            print(f"Running acquisition={acq}, seed={seed}")
+            df = active_learning_loop(
+                BASE_DIR          = BASE_DIR,
+                LABEL_SPLIT_RATIO = label_split_ratio,
+                TEST_SPLIT_RATIO  = test_split_ratio,
+                sample_size       = sample_size,
+                acquisition_type  = acq,
+                mc_runs           = mc_runs,
+                num_epochs        = num_epochs,
+                batch_size        = batch_size,
+                lr                = lr,
+                loop_iterations   = loop_iterations,
+                seed              = seed,
+                device            = device
+            )
+            df = df.rename(columns={"method": "fraction", "dice": "dice"})  # if needed
+            df["seed"]   = seed
+            df["method"] = acq
+            all_runs.append(df)
 
-all_runs = []
+    overall_df = pd.concat(all_runs, ignore_index=True)
+    return overall_df
 
-for seed in SEEDS:
-    for acq in ACQ_FUNCS:
-        print(f"Running acquisition={acq}, seed={seed}")
-        df = active_learning_loop(
-            BASE_DIR          = "/path/to/data",
-            LABEL_SPLIT_RATIO = 0.1,
-            TEST_SPLIT_RATIO  = 0.2,
-            sample_size       = 10,
-            acquisition_type  = acq,
-            mc_runs           = 5,
-            num_epochs        = 5,
-            batch_size        = 4,
-            lr                = 1e-3,
-            loop_iterations   = None,    # until pool empty
-            seed              = seed,
-            device            = "cuda"
-        )
-        df["seed"]   = seed
-        df["method"] = acq
-        all_runs.append(df)
 
-# 2. Concatenate
-big_df = pd.concat(all_runs, ignore_index=True)
+def plot_active_learning_results(
+    df,
+    ylim=(0, 1),
+    figsize=(12, 8),
+    markers=None
+):
+    if markers is None:
+        markers = {
+            'random':        'o',
+            'entropy':       's',
+            'bald':          '^',
+            'kl-divergence': 'D',
+            'js-divergence': 'X',
+        }
 
-# 3. Compute mean & std
-stats = (
-    big_df
-      .groupby(["method","fraction"])["dice"]
-      .agg(mean="mean", std="std")
-      .reset_index()
-)
-
-# 4. Plot with error-bars
-plt.figure(figsize=(10,6))
-for method, grp in stats.groupby("method"):
-    plt.errorbar(
-        grp["fraction"],
-        grp["mean"],
-        yerr=grp["std"],
-        marker="o",
-        capsize=3,
-        label=method
+    # compute stats
+    stats = (
+        df
+        .groupby(['method', 'fraction'])['dice']
+        .agg(mean='mean', std='std')
+        .reset_index()
     )
 
-plt.title("Test Dice vs Fraction Labelled\n(mean ± std over seeds)")
-plt.xlabel("Fraction of Dataset Labelled")
-plt.ylabel("Test Dice Score")
-plt.ylim(0.5, 0.85)
-plt.grid(True)
-plt.legend()
-plt.tight_layout()
-plt.show()
+    # plot
+    plt.figure(figsize=figsize)
+    for method, grp in stats.groupby('method'):
+        plt.errorbar(
+            grp['fraction'],
+            grp['mean'],
+            yerr=grp['std'],
+            marker=markers.get(method, 'o'),
+            linewidth=2.5,
+            markersize=8,
+            capsize=4,
+            alpha=0.8,
+            label=method
+        )
+
+    plt.ylim(*ylim)
+    plt.title('Test Dice vs Fraction Labelled\n(mean ± std over seeds)', fontsize=18)
+    plt.xlabel('Fraction of Dataset Labelled', fontsize=14)
+    plt.ylabel('Test Dice Score', fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.grid(which='major', linestyle='--', alpha=0.3)
+    plt.legend(title='Acquisition', fontsize=12, title_fontsize=13,
+               loc='upper left', bbox_to_anchor=(1, 1))
+    plt.tight_layout()
+    plt.show()
+
