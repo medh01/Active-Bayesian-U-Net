@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from active_learning_loop import active_learning_loop
+from tools.active_learning_loop import active_learning_loop
 
 def collect_active_learning_results(
     BASE_DIR,
@@ -27,14 +27,13 @@ def collect_active_learning_results(
                 sample_size       = sample_size,
                 acquisition_type  = acq,
                 mc_runs           = mc_runs,
-                num_epochs        = num_epochs,
                 batch_size        = batch_size,
                 lr                = lr,
                 loop_iterations   = loop_iterations,
                 seed              = seed,
                 device            = device
             )
-            df = df.rename(columns={"method": "fraction", "dice": "dice"})  # if needed
+
             df["seed"]   = seed
             df["method"] = acq
             all_runs.append(df)
