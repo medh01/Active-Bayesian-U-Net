@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from tools.active_learning_loop import active_learning_loop
+from active_learning_loop import active_learning_loop
 
 def collect_active_learning_results(
     BASE_DIR,
