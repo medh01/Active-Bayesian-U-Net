@@ -65,6 +65,7 @@ def active_learning_loop(
             len(os.listdir(dirs["labeled_img"])) +  # currently labelled
             len(os.listdir(dirs["unlabeled_img"]))  # plus still un-labelled
     )
+    train_on_full_data = False
     # ─────────────────── big loop ────────────────────────────
     while True:
 
@@ -75,8 +76,11 @@ def active_learning_loop(
         # stop only when pool empty
         n_unl = len(os.listdir(dirs["unlabeled_img"]))
         if n_unl == 0:
-            print("Un-labelled pool exhausted – finished.")
-            break
+            if train_on_full_data:
+                print("Un-labelled pool exhausted – finished.")
+                break
+            else:
+                train_on_full_data = True
 
         iteration += 1
         print(f"\n── Round {iteration} | pool size: {n_unl}")
@@ -130,11 +134,12 @@ def active_learning_loop(
         print(f"    Round Dice = {test_dice:.4f}")
 
         # acquisition
-        score_dict = score_unlabeled_pool(
-            U, model, scorer, T=mc_runs, num_classes=4, device=device
-        )
-        move_images_with_dict(BASE_DIR, "Labeled_pool", "Unlabeled_pool",
-                              score_dict, num_to_move=min(sample_size, n_unl))
+        if not train_on_full_data:
+            score_dict = score_unlabeled_pool(
+                U, model, scorer, T=mc_runs, num_classes=4, device=device
+            )
+            move_images_with_dict(BASE_DIR, "Labeled_pool", "Unlabeled_pool",
+                                  score_dict, num_to_move=min(sample_size, n_unl))
 
         # checkpoint for this round
         torch.save({"round": iteration,
