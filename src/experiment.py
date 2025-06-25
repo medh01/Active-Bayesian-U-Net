@@ -10,7 +10,6 @@ def collect_active_learning_results(
     test_split_ratio=0.2,
     sample_size=10,
     mc_runs=5,
-    num_epochs=5,
     batch_size=4,
     lr=1e-3,
     loop_iterations=None,
