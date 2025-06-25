@@ -103,6 +103,7 @@ Follow these steps in a Kaggle notebook to reproduce the experiments:
    - Create a local data folder and copy images & masks from the Kaggle dataset
     
    ```bash
+    %%bash
     # ← edit this to match your dataset’s folder under /kaggle/input
     DATASET_PATH="<PATH_TO_EMBRYO_DATASET>"   # e.g. /kaggle/input/embryo-images-and-masks
 
