@@ -2,8 +2,10 @@ import torch, torch.nn.functional as F
 from torch.cuda.amp import autocast
 from tqdm import tqdm
 
-def random_score(model, imgs, **kwargs):
-    return torch.rand(imgs.size(0), device=imgs.device)
+def random_score(imgs, gen = None):
+    if gen is None:
+        gen = torch.Generator(device=imgs.device)  # new RNG, no side-effects
+    return torch.rand(imgs.size(0), device=imgs.device, generator=gen)
 
 def entropy(model, imgs, T=8, num_classes=4):
     model.train()                      # keep dropout ON for stochasticity
@@ -11,14 +13,14 @@ def entropy(model, imgs, T=8, num_classes=4):
         imgs.size(0), num_classes, *imgs.shape[2:], device=imgs.device)
 
     for _ in range(T):
-        with autocast():
+        with torch.amp.autocast('cuda'):
             logits = model(imgs)               # B,C,H,W
             probs  = F.softmax(logits, 1)
         probs_sum += probs
 
     probs_mean = probs_sum / T                 # p̄
     ent = -(probs_mean * probs_mean.log()).sum(dim=1)  # B,H,W
-    return ent.mean(dim=(1, 2))                # spatial mean → (B,)
+    return ent.sum(dim=(1, 2))                # spatial sum → (B,)
 
 
 def BALD(model, imgs, T=8, num_classes=4): #bald_map = predictive_entropy - expected_entropy
@@ -32,7 +34,7 @@ def BALD(model, imgs, T=8, num_classes=4): #bald_map = predictive_entropy - expe
 
     for _ in range(T):
         with torch.no_grad():
-            with autocast():
+            with torch.amp.autocast('cuda'):
                 logits = model(imgs)  # Shape: (B, C, H, W)
                 probs = F.softmax(logits, dim=1)  # Shape: (B, C, H, W)
 
@@ -68,7 +70,7 @@ def committee_kl_divergence(model, imgs, T=8, num_classes=4):
     # 1) Monte Carlo posterior under dropout
     model.train()
     all_probs = torch.zeros(T, B, num_classes, H, W, device=device)
-    with torch.no_grad(), autocast():
+    with torch.no_grad(), torch.amp.autocast('cuda'):
         for i in range(T):
             logits      = model(imgs)
             all_probs[i] = F.softmax(logits, dim=1)
@@ -76,7 +78,7 @@ def committee_kl_divergence(model, imgs, T=8, num_classes=4):
 
     # 2) Deterministic “standard” prediction
     model.eval()   # <-- turn OFF dropout here
-    with torch.no_grad(), autocast():
+    with torch.no_grad(), torch.amp.autocast('cuda'):
         logits        = model(imgs)
         standard_probs = F.softmax(logits, dim=1)
 
@@ -117,7 +119,7 @@ def committee_js_divergence(model, imgs, T=8, num_classes=4, eps=1e-12):
     # --- 1) Monte Carlo posterior Q ---
     model.train()  # keep dropout on
     all_probs = torch.zeros(T, B, num_classes, H, W, device=device)
-    with torch.no_grad(), autocast():
+    with torch.no_grad(), torch.amp.autocast('cuda'):
         for i in range(T):
             logits = model(imgs)                  # (B,C,H,W)
             all_probs[i] = F.softmax(logits, dim=1)
@@ -125,7 +127,7 @@ def committee_js_divergence(model, imgs, T=8, num_classes=4, eps=1e-12):
 
     # --- 2) Deterministic standard prediction p ---
     model.eval()  # turn dropout off
-    with torch.no_grad(), autocast():
+    with torch.no_grad(), torch.amp.autocast('cuda'):
         logits = model(imgs)
         p = F.softmax(logits, dim=1)            # (B,C,H,W)
 
@@ -146,52 +148,52 @@ def committee_js_divergence(model, imgs, T=8, num_classes=4, eps=1e-12):
 
 
 
-def score_unlabeled_pool(unl_loader, model, acq_type="entropy", T=8, num_classes=4, device="cuda"):
-    """
-    Scores unlabeled pool using specified acquisition function
-
-    Args:
-        unl_loader: DataLoader for unlabeled images
-        model: Model to use for scoring
-        acq_type: Type of acquisition function ('entropy', 'bald', 'kl_divergence')
-        T: Number of Monte Carlo samples
-        num_classes: Number of output classes
-        device: Device to use for computation
-
-    Returns:
-        Dictionary of {filename: score}
-    """
-    model.to(device)
-    model.train()  # Ensure dropout is enabled for all acquisition functions
-
-    # Map acquisition type to scoring function
-    acquisition_functions = {
-        "entropy": entropy,
-        "bald": BALD,
-        "kl_divergence": committee_kl_divergence
-    }
-
-    # Validate acquisition type
-    if acq_type not in acquisition_functions:
-        raise ValueError(f"Invalid acquisition type: {acq_type}. "
-                         f"Valid options are {list(acquisition_functions.keys())}")
-
-    # Select the scoring function
-    score_func = acquisition_functions[acq_type]
-
-    scores, fnames = [], []
-
-    with torch.no_grad():
-        for imgs, names in tqdm(unl_loader, desc=f"Scoring ({acq_type})", leave=False):
-            imgs = imgs.to(device)
-
-            # Handle different parameter requirements
-            if acq_type == "kl_divergence":
-                s = score_func(model, imgs, T=T, num_classes=num_classes)
-            else:
-                s = score_func(model, imgs, T=T, num_classes=num_classes)
-
-            scores.extend(s.cpu().tolist())
-            fnames.extend(names)
-
-    return dict(zip(fnames, scores))
+# def score_unlabeled_pool(unl_loader, model, acq_type="entropy", T=8, num_classes=4, device="cuda"):
+#     """
+#     Scores unlabeled pool using specified acquisition function
+#
+#     Args:
+#         unl_loader: DataLoader for unlabeled images
+#         model: Model to use for scoring
+#         acq_type: Type of acquisition function ('entropy', 'bald', 'kl_divergence')
+#         T: Number of Monte Carlo samples
+#         num_classes: Number of output classes
+#         device: Device to use for computation
+#
+#     Returns:
+#         Dictionary of {filename: score}
+#     """
+#     model.to(device)
+#     model.train()  # Ensure dropout is enabled for all acquisition functions
+#
+#     # Map acquisition type to scoring function
+#     acquisition_functions = {
+#         "entropy": entropy,
+#         "bald": BALD,
+#         "kl_divergence": committee_kl_divergence
+#     }
+#
+#     # Validate acquisition type
+#     if acq_type not in acquisition_functions:
+#         raise ValueError(f"Invalid acquisition type: {acq_type}. "
+#                          f"Valid options are {list(acquisition_functions.keys())}")
+#
+#     # Select the scoring function
+#     score_func = acquisition_functions[acq_type]
+#
+#     scores, fnames = [], []
+#
+#     with torch.no_grad():
+#         for imgs, names in tqdm(unl_loader, desc=f"Scoring ({acq_type})", leave=False):
+#             imgs = imgs.to(device)
+#
+#             # Handle different parameter requirements
+#             if acq_type == "kl_divergence":
+#                 s = score_func(model, imgs, T=T, num_classes=num_classes)
+#             else:
+#                 s = score_func(model, imgs, T=T, num_classes=num_classes)
+#
+#             scores.extend(s.cpu().tolist())
+#             fnames.extend(names)
+#
+#     return dict(zip(fnames, scores))

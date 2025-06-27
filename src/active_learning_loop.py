@@ -15,92 +15,6 @@ from active_learning_utils  import (reset_data, create_active_learning_pools,
                                     move_images_with_dict, score_unlabeled_pool)
 from train_eval             import train_one_epoch, evaluate_loader
 
-##########################################
-def debug_real_data_scoring(dirs, model, device="cuda"):
-    """
-    Debug function to test scoring with real data
-    """
-    print("\n" + "=" * 60)
-    print("DEBUGGING REAL DATA SCORING")
-    print("=" * 60)
-
-    # Import your functions
-    from acquisition_functions import entropy, BALD, committee_js_divergence, committee_kl_divergence
-    from data_loading import get_loaders_active
-
-    # Get the unlabeled loader
-    L, U, T = get_loaders_active(
-        dirs["labeled_img"], dirs["labeled_mask"],
-        dirs["unlabeled_img"],
-        dirs["test_img"], dirs["test_mask"],
-        batch_size=4,  # Small batch for debugging
-        num_workers=0,  # Single thread for debugging
-        pin_memory=False
-    )
-
-    print(f"Unlabeled loader has {len(U)} batches")
-
-    # Get one batch for testing
-    for imgs, names in U:
-        print(f"Testing batch with {len(names)} images:")
-        print(f"Image names: {names}")
-        print(f"Image tensor shape: {imgs.shape}")
-
-        imgs = imgs.to(device)
-
-        # Test each acquisition function on the same batch
-        functions_to_test = {
-            "entropy": entropy,
-            "bald": BALD,
-            "js_divergence": committee_js_divergence,
-            "kl_divergence": committee_kl_divergence
-        }
-
-        results = {}
-
-        for func_name, func in functions_to_test.items():
-            print(f"\n--- Testing {func_name} ---")
-
-            # IMPORTANT: Reset model state and seed
-            torch.manual_seed(0)  # Same seed for fair comparison
-
-            try:
-                scores = func(model, imgs, T=5, num_classes=4)
-                results[func_name] = scores.cpu().numpy()
-
-                print(f"Scores: {scores.cpu().numpy()}")
-
-                # Show which image gets highest score
-                max_idx = torch.argmax(scores).item()
-                print(f"Highest scoring image: {names[max_idx]} (score: {scores[max_idx]:.6f})")
-
-            except Exception as e:
-                print(f"ERROR in {func_name}: {e}")
-                import traceback
-                traceback.print_exc()
-
-        # Compare results
-        print(f"\n--- COMPARISON ---")
-        func_names = list(results.keys())
-
-        for i, func_name in enumerate(func_names):
-            scores = results[func_name]
-            top_idx = np.argmax(scores)
-            print(f"{func_name:15s}: Top image = {names[top_idx]:20s} (score: {scores[top_idx]:.6f})")
-
-        # Check if they all pick the same image
-        top_images = [names[np.argmax(results[fname])] for fname in func_names]
-        all_same = len(set(top_images)) == 1
-        print(f"\nAll functions pick same top image: {all_same}")
-        if all_same:
-            print(f"They all pick: {top_images[0]}")
-
-        break  # Only test first batch
-
-    print("=" * 60)
-###########################################################################333
-
-
 ACQ_FUNCS = {
     "random":        random_score,
     "entropy":       entropy,
@@ -127,12 +41,14 @@ def active_learning_loop(
 ):
     # ─────────────────── housekeeping ────────────────────────
     reset_data(BASE_DIR)
-    g = torch.Generator()
     if seed is not None:
-        random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        random.seed(seed)         # Python’s RNG  → used by random.shuffle / sample
+        np.random.seed(seed)      # NumPy’s RNG   → in case create_active_learning_pools uses it
+    g = torch.Generator()
+
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
         g.manual_seed(seed)
 
     dirs = create_active_learning_pools(
@@ -143,7 +59,7 @@ def active_learning_loop(
     os.makedirs(ckpt_dir, exist_ok=True)
 
     # ─────────────────── model built once ────────────────────
-    model     = BayesianUNet(1, 4, [64,128,256,512], 0.1).to(device)
+    model     = BayesianUNet(1, 4, [64,128,256,512], 0.5).to(device)
     loss_f    = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
@@ -226,34 +142,8 @@ def active_learning_loop(
 
         # acquisition
         if not train_on_full_data:
-            ###############################################
-            # DEBUG: Test scoring on a small sample
-            if iteration == 1:  # Only on first iteration to avoid spam
-                print("\n🔍 DEBUGGING: Testing acquisition functions on real data...")
-                debug_real_data_scoring(dirs, model, device)
-
-            print(f"\n📊 SCORING: Using {acquisition_type} acquisition function...")
-
-            # Your existing scoring code
             score_dict = score_unlabeled_pool(
-                U, model, scorer, T=mc_runs, num_classes=4, device=device
-            )
-
-            # DEBUG: Show top results
-            sorted_scores = sorted(score_dict.items(), key=lambda x: x[1], reverse=True)
-            print(f"🎯 TOP 3 SCORED IMAGES ({acquisition_type}):")
-            for i, (fname, score) in enumerate(sorted_scores[:3]):
-                print(f"   {i + 1}. {fname}: {score:.8f}")
-
-            print(f"🎯 BOTTOM 3 SCORED IMAGES ({acquisition_type}):")
-            for i, (fname, score) in enumerate(sorted_scores[-3:]):
-                print(f"   {i + 1}. {fname}: {score:.8f}")
-
-
-
-            ###############################################
-            score_dict = score_unlabeled_pool(
-                U, model, scorer, T=mc_runs, num_classes=4, device=device
+                U, model, scorer, T=mc_runs, num_classes=4, device=device, rnd_gen = g
             )
             move_images_with_dict(BASE_DIR, "Labeled_pool", "Unlabeled_pool",
                                   score_dict, num_to_move=min(sample_size, n_unl))
