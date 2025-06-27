@@ -1,4 +1,6 @@
 import os
+import random
+
 from PIL import Image, ImageOps
 import numpy as np
 import torch
@@ -73,6 +75,11 @@ class UnlabeledBlastocystDataset(Dataset):
 
         return img, img_name
 
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
 def get_loaders_active(
         labeled_img_dir,
         labeled_mask_dir,
@@ -80,6 +87,7 @@ def get_loaders_active(
         test_img_dir,
         test_mask_dir,
         batch_size,
+        generator=None,
         num_workers=4,
         pin_memory=True,
 ):
@@ -105,6 +113,8 @@ def get_loaders_active(
         labeled_ds,
         batch_size=batch_size,
         shuffle=True,
+        generator=generator,
+        worker_init_fn=seed_worker,
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=True  # Helps with batch normalization
@@ -114,6 +124,7 @@ def get_loaders_active(
         unlabeled_ds,
         batch_size=batch_size,
         shuffle=False,  # Important for sample tracking
+        worker_init_fn=seed_worker,
         num_workers=num_workers,
         pin_memory=pin_memory
     )
@@ -122,6 +133,7 @@ def get_loaders_active(
         test_ds,
         batch_size=batch_size,
         shuffle=False,
+        worker_init_fn=seed_worker,
         num_workers=num_workers,
         pin_memory=pin_memory
     )

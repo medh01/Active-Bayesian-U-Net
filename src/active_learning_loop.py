@@ -41,11 +41,13 @@ def active_learning_loop(
 ):
     # ─────────────────── housekeeping ────────────────────────
     reset_data(BASE_DIR)
+    g = torch.Generator()
     if seed is not None:
         random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+        g.manual_seed(seed)
 
     dirs = create_active_learning_pools(
         BASE_DIR, LABEL_SPLIT_RATIO, TEST_SPLIT_RATIO, shuffle=True
@@ -77,20 +79,23 @@ def active_learning_loop(
         n_unl = len(os.listdir(dirs["unlabeled_img"]))
         if n_unl == 0:
             if train_on_full_data:
-                print("Un-labelled pool exhausted – finished.")
+                print("Finished Training on the whole dataset")
                 break
             else:
+                print("Un-labelled pool exhausted")
                 train_on_full_data = True
 
         iteration += 1
-        print(f"\n── Round {iteration} | pool size: {n_unl}")
+        print(f"\n── Active Learning Iteration: {iteration} | Unlabelled pool size: {n_unl}")
 
         # loaders
         L, U, T = get_loaders_active(
             dirs["labeled_img"], dirs["labeled_mask"],
             dirs["unlabeled_img"],
             dirs["test_img"], dirs["test_mask"],
-            batch_size, num_workers=4, pin_memory=True
+            batch_size,
+            generator=g,
+            num_workers=4, pin_memory=True
         )
 
         # ───── fine-tune with early stopping (no epoch cap) ───
@@ -146,6 +151,6 @@ def active_learning_loop(
                     "model_state": model.state_dict(),
                     "optim_state": optimizer.state_dict(),
                     "dice": test_dice},
-                   os.path.join(ckpt_dir, f"round_{iteration:03d}.pt"))
+                   os.path.join(ckpt_dir, f"active_learning_iteration_{iteration:03d}.pt"))
 
     return pd.DataFrame(log)
