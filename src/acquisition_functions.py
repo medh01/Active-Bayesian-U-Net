@@ -3,7 +3,7 @@ from torch.cuda.amp import autocast
 from tqdm import tqdm
 
 def random_score(model, imgs,**kwargs):
-    torch.rand(imgs.size(0), device=imgs.device)
+    return torch.rand(imgs.size(0), device=imgs.device)
 
 def entropy(model, imgs, T=8, num_classes=4):
     model.train()                      # keep dropout ON for stochasticity
