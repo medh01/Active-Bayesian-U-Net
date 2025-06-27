@@ -41,14 +41,15 @@ def active_learning_loop(
 ):
     # ─────────────────── housekeeping ────────────────────────
     reset_data(BASE_DIR)
-    if seed is not None:
-        random.seed(seed)         # Python’s RNG  → used by random.shuffle / sample
-        np.random.seed(seed)      # NumPy’s RNG   → in case create_active_learning_pools uses it
-    g = torch.Generator()
 
+    g = torch.Generator()
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
         g.manual_seed(seed)
 
     dirs = create_active_learning_pools(
@@ -143,7 +144,7 @@ def active_learning_loop(
         # acquisition
         if not train_on_full_data:
             score_dict = score_unlabeled_pool(
-                U, model, scorer, T=mc_runs, num_classes=4, device=device, rnd_gen = g
+                U, model, scorer, T=mc_runs, num_classes=4, device=device
             )
             move_images_with_dict(BASE_DIR, "Labeled_pool", "Unlabeled_pool",
                                   score_dict, num_to_move=min(sample_size, n_unl))

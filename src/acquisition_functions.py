@@ -2,10 +2,8 @@ import torch, torch.nn.functional as F
 from torch.cuda.amp import autocast
 from tqdm import tqdm
 
-def random_score(imgs, gen = None):
-    if gen is None:
-        gen = torch.Generator(device=imgs.device)  # new RNG, no side-effects
-    return torch.rand(imgs.size(0), device=imgs.device, generator=gen)
+def random_score(model, imgs,**kwargs):
+    torch.rand(imgs.size(0), device=imgs.device)
 
 def entropy(model, imgs, T=8, num_classes=4):
     model.train()                      # keep dropout ON for stochasticity

@@ -136,17 +136,13 @@ def move_images_with_dict(
 
     print(f"Moved {moved} most uncertain images from {unlabeled_dir} → {labeled_dir}.")
 
-def score_unlabeled_pool(unlabeled_loader, model, score_fn, T=8, num_classes=4, device="cuda", rnd_gen = None):
+def score_unlabeled_pool(unlabeled_loader, model, score_fn, T=8, num_classes=4, device="cuda"):
     model.to(device).train()
-    is_random = score_fn is random_score
     scores, fnames = [], []
     with torch.no_grad():
         for imgs, names in tqdm(unlabeled_loader, desc="Scoring", leave=False):
             imgs = imgs.to(device)
-            if is_random:
-                s = score_fn(imgs, gen=rnd_gen)
-            else:
-                s = score_fn(model, imgs, T=T, num_classes=num_classes)
+            s = score_fn(model, imgs, T=T, num_classes=num_classes)
             scores.extend(s.cpu().tolist())
             fnames.extend(names)
     return dict(zip(fnames, scores))
