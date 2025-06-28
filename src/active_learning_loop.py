@@ -13,7 +13,7 @@ from acquisition_functions  import (random_score, entropy, BALD,
                                     committee_js_divergence)
 from active_learning_utils  import (reset_data, create_active_learning_pools,
                                     move_images_with_dict, score_unlabeled_pool)
-from train_eval             import train_one_epoch, evaluate_loader
+from train_eval import train_one_epoch, evaluate_loader, evaluate_mcmc
 
 ACQ_FUNCS = {
     "random":        random_score,
@@ -128,6 +128,11 @@ def active_learning_loop(
 
         # evaluate & log
         _, test_dice = evaluate_loader(T, model, device=device, num_classes=4)
+        mean_mcmc_dice, std_mcmc_dice = evaluate_mcmc(T, model,
+                                            device=device,
+                                            num_classes=4,
+                                            mc_iterations=mc_runs)
+
         curr_labeled = len(os.listdir(dirs["labeled_img"]))  # how many labelled now
 
         # record metrics
@@ -136,9 +141,10 @@ def active_learning_loop(
         log.append({
             "round": iteration,
             "fraction": frac,
-            "dice": test_dice,
+            "mcmc_dice": mean_mcmc_dice
         })
 
+        print(f"[Round {iteration}] MCMC validation Dice = {mean_mcmc_dice:.4f} ± {std_mcmc_dice:.4f}")
         print(f"    Round Dice = {test_dice:.4f}")
 
         # acquisition

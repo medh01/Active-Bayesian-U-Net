@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch.cuda.amp import autocast, GradScaler
 from tqdm import tqdm
@@ -95,3 +96,34 @@ def evaluate_loader(loader, model, device="cuda", num_classes=4):
         raise ValueError("Loader is empty – nothing to evaluate.")
 
     return tot_acc / n_batches, tot_dice / n_batches
+
+@torch.no_grad()
+def evaluate_mcmc(loader, model, device="cuda", num_classes=4, mc_iterations=5):
+    """
+    Monte Carlo (MC‐Dropout) validation: runs `mc_iterations` stochastic passes
+    over the entire validation loader, then returns mean±std of the Dice score.
+    """
+    model = model.to(device)
+    dice_scores = []
+
+    for i in range(mc_iterations):
+        model.train()            # keep dropout (and/or max‐pool dropout) active
+        tot_dice, n_batches = 0.0, 0
+        with torch.no_grad():
+            for imgs, masks, *_ in loader:
+                imgs  = imgs.to(device)
+                masks = masks.to(device)
+
+                logits = model(imgs)               # stochastic forward
+                preds  = logits.argmax(1)
+
+                # reuse your macro‐Dice helper (or compute manually)
+                batch_dice = macro_dice(preds, masks, num_classes)
+                tot_dice  += batch_dice.item()
+                n_batches += 1
+
+        dice_scores.append(tot_dice / n_batches)
+
+    mean_dice = np.mean(dice_scores)
+    std_dice  = np.std(dice_scores)
+    return mean_dice, std_dice
