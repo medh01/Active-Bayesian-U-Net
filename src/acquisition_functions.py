@@ -2,7 +2,7 @@ import torch, torch.nn.functional as F
 from torch.cuda.amp import autocast
 from tqdm import tqdm
 
-def random_score(model, imgs,**kwargs):
+def random_score(model, imgs, **kwargs):
     return torch.rand(imgs.size(0), device=imgs.device)
 
 def entropy(model, imgs, T=8, num_classes=4):
