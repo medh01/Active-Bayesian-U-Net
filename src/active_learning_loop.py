@@ -27,6 +27,7 @@ def active_learning_loop(
         BASE_DIR: str,
         LABEL_SPLIT_RATIO: float = .1,
         TEST_SPLIT_RATIO: float = .2,
+        augment: bool = False,
         sample_size: int = 10,
         acquisition_type: str = "js-divergence",
         mc_runs: int = 5,
@@ -97,6 +98,7 @@ def active_learning_loop(
             dirs["unlabeled_img"],
             dirs["test_img"], dirs["test_mask"],
             batch_size,
+            augment=augment,
             generator=g,
             num_workers=4, pin_memory=True
         )
@@ -141,11 +143,13 @@ def active_learning_loop(
         log.append({
             "round": iteration,
             "fraction": frac,
-            "mcmc_dice": mean_mcmc_dice
+            "mcmc_dice": mean_mcmc_dice,
+            "mcmc_std": std_mcmc_dice
         })
 
-        print(f"[Round {iteration}] MCMC validation Dice = {mean_mcmc_dice:.4f} ± {std_mcmc_dice:.4f}")
-        print(f"    Round Dice = {test_dice:.4f}")
+        print(f"[Active Learning iteration: {iteration}]")
+        print(f"    MCMC validation Dice       = {mean_mcmc_dice:.4f} ± {std_mcmc_dice:.4f}")
+        print(f"    Deterministic Validation Dice = {test_dice:.4f}")
 
         # acquisition
         if not train_on_full_data:

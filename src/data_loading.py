@@ -5,6 +5,8 @@ from PIL import Image, ImageOps
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
+from albumentations import Compose, Affine
+from albumentations.pytorch import ToTensorV2
 
 Classes = {
     (51, 221, 255): 0,   # ICM
@@ -25,10 +27,35 @@ def mask_encoding(arr):
 
 
 class BlastocystDataset(Dataset):
-    def __init__(self, image_dir, mask_dir):
+    def __init__(self,
+                 image_dir,
+                 mask_dir,
+                 augment=False,
+                 rotate_limit=30,
+                 shift_limit=0.1,
+                 scale_limit=0.2,
+                 shear_limit=20,
+                 ):
         self.image_dir = image_dir
         self.mask_dir  = mask_dir
         self.image_filenames = sorted(os.listdir(image_dir))
+        self.augment = augment
+        if augment:
+            self.transform = Compose([
+                Affine(
+                    rotate=rotate_limit,
+                    translate_percent=shift_limit,
+                    scale=(1 - scale_limit, 1 + scale_limit),
+                    shear=shear_limit,
+                    p=1.0,
+                ),
+                ToTensorV2(),
+            ], additional_targets={'mask': 'mask'})
+        else:
+            self.transform = Compose([
+                ToTensorV2(),
+            ], additional_targets={'mask': 'mask'})
+
 
     def __len__(self):
         return len(self.image_filenames)
@@ -44,14 +71,18 @@ class BlastocystDataset(Dataset):
         img = Image.open(img_path).convert("L")
         img = ImageOps.pad(img, TARGET_SIZE, method=Image.BILINEAR, color=0)
         img = np.array(img, np.float32) / 255.0                    # [H,W] float
-        img = torch.from_numpy(img).unsqueeze(0)                   # [1,H,W]
+                                                                   # [1,H,W]
 
         # load / pad mask, then encode to classes
         mask_rgb = Image.open(mask_path).convert("RGB")
         mask_rgb = ImageOps.pad(mask_rgb, TARGET_SIZE, method=Image.NEAREST, color=(0, 0, 0))
         mask_arr = np.array(mask_rgb)
-        mask_cls = mask_encoding(mask_arr)                          # [H,W] uint8
-        mask     = torch.from_numpy(mask_cls).long()               # int64 for CE-loss
+        mask = mask_encoding(mask_arr)                          # [H,W] uint8
+                                                                    # int64 for CE-loss
+        # Apply transformations (augmentations + ToTensorV2)
+        transformed = self.transform(image=img, mask=mask)
+        img = transformed['image']
+        mask = transformed['mask'].long()  # Ensure mask is LongTensor for CrossEntropyLoss
 
         return img, mask, img_name   # img→[1,H,W], mask→[H,W]
 
@@ -87,6 +118,7 @@ def get_loaders_active(
         test_img_dir,
         test_mask_dir,
         batch_size,
+        augment = False,
         generator=None,
         num_workers=4,
         pin_memory=True,
@@ -94,7 +126,8 @@ def get_loaders_active(
     # 1. Labeled Dataset (with masks)
     labeled_ds = BlastocystDataset(
         image_dir=labeled_img_dir,
-        mask_dir=labeled_mask_dir
+        mask_dir=labeled_mask_dir,
+        augment = augment
     )
 
     # 2. Unlabeled Dataset (images only)
@@ -105,7 +138,8 @@ def get_loaders_active(
     # 3. Test Dataset (with masks)
     test_ds = BlastocystDataset(
         image_dir=test_img_dir,
-        mask_dir=test_mask_dir
+        mask_dir=test_mask_dir,
+        augment = False
     )
 
     # Create loaders
