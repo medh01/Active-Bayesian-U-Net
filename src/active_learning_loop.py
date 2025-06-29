@@ -1,6 +1,3 @@
-# --------------------------------------------------------------
-# Active Bayesian-UNet loop – no outer stopping criteria
-# --------------------------------------------------------------
 import os, random
 import numpy as np
 import torch, torch.nn as nn, torch.optim as optim
@@ -41,6 +38,28 @@ def active_learning_loop(
         patience: int = 5,
         min_delta: float = 1e-4,
 ):
+    """
+    Performs the active learning loop.
+
+    Args:
+        BASE_DIR (str): The base directory for the data.
+        LABEL_SPLIT_RATIO (float, optional): The ratio of labeled data to split from the original data. Defaults to .1.
+        TEST_SPLIT_RATIO (float, optional): The ratio of test data to split from the original data. Defaults to .2.
+        augment (bool, optional): Whether to use data augmentation. Defaults to False.
+        sample_size (int, optional): The number of samples to acquire in each iteration. Defaults to 10.
+        acquisition_type (str, optional): The acquisition function to use. Defaults to "js-divergence".
+        mc_runs (int, optional): The number of Monte Carlo runs for evaluation. Defaults to 5.
+        batch_size (int, optional): The batch size for training and evaluation. Defaults to 4.
+        lr (float, optional): The learning rate for the optimizer. Defaults to 1e-3.
+        seed (int | None, optional): The random seed. Defaults to None.
+        loop_iterations (int | None, optional): The number of active learning iterations. Defaults to None.
+        device (str, optional): The device to use for training and evaluation. Defaults to "cuda" if available, else "cpu".
+        patience (int, optional): The patience for early stopping. Defaults to 5.
+        min_delta (float, optional): The minimum delta for early stopping. Defaults to 1e-4.
+
+    Returns:
+        pd.DataFrame: A pandas DataFrame containing the logs of the active learning loop.
+    """
     # ─────────────────── housekeeping ────────────────────────
     reset_data(BASE_DIR)
 

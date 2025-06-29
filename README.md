@@ -8,9 +8,11 @@
 This project is an implementation of **an Active Leraning Framework based on Bayesian U-Net** to improve the segmentation of
 **human embryo images**. The objective is to optimize **annotation** efforts while maintaining high segmentation
 performance.
-> *Note:*
+> *Note: 1*
 This implementation is based on the research paper [Active Learning with Bayesian U-Net for Efficient Semantic Image Segmentation by Isah Charles Saidu and Lehel Csató](https://doi.org/10.3390/jimaging7020037).
 
+> *Note: 2*
+I highly recommend reading the paper if you are looking to dive deep into this project
 
 
 
@@ -30,6 +32,7 @@ This implementation is based on the research paper [Active Learning with Bayesia
 Active-Bayesian-U-Net/
 └── docs/                         # contains images for the README.md file
 └── examples/                     # contains examples of images and their masks
+└── experiments/                  # contains the results of the experiments
 └── src/ 
     ├── mask_converter.py        # To Convert the 3 binary masks (ICM, TE, ZP) into an RGB mask                     
     ├── active_learning_loop.py  # Active Learning Pipeline implementation 
@@ -128,52 +131,23 @@ Follow these steps in a Kaggle notebook to reproduce the experiments:
    from active_learning_loop import active_learning_loop
 
     df = active_learning_loop(
-        BASE_DIR         ="/kaggle/working/data",
-        LABEL_SPLIT_RATIO =0.1,
-        TEST_SPLIT_RATIO  =0.2,
-        sample_size       =10,
-        acquisition_type  ="random",
-        mc_runs           =5,
-        num_epochs        =5,
-        batch_size        =4,
-        lr                =1e-3,
-        loop_iterations   =None,
-        seed              =0,
-        device            ="cuda"
+    BASE_DIR          = "/kaggle/working/data",
+    LABEL_SPLIT_RATIO = 0.1,
+    TEST_SPLIT_RATIO  = 0.2,
+    augment = True,
+    sample_size       = 10,
+    acquisition_type  = acq,
+    mc_runs           = 5,
+    batch_size        = 4,
+    lr                = 1e-3,
+    loop_iterations   = None,
+    seed              = 1,
+    device            = "cuda"
     )
 
 7. Run experiments to compare different acquisition functions
 - Feel free tro adjust any of the parameters below to suit your needs
-    ```Python
-   from active_learning_utils import (
-    collect_active_learning_results,
-    plot_active_learning_results
-    )
    
-    # 1) Gather results
-    df = collect_active_learning_results(
-        BASE_DIR='/kaggle/working/data',
-        seeds=[0,1,2,3,4],
-        acquisition_funcs=["random","entropy","bald","kl-divergence","js-divergence"],
-        label_split_ratio=0.1,
-        test_split_ratio=0.2,
-        sample_size=10,
-        mc_runs=5,
-        num_epochs=5,
-        batch_size=4,
-        lr=1e-3,
-        loop_iterations=None,
-        device='cuda'
-    )
-
-    # 2) Visualise
-    plot_active_learning_results(
-       df,
-       ylim=(0, 1),
-       figsize=(12, 8),
-       markers=None
-    )
-
 ## Implementation Details
 
 ### Data Encoding & Preprocessing
@@ -203,6 +177,11 @@ This preserves the original aspect ratio, fills any extra borders with backgroun
 ![](docs/splitting%20data.png)
 
 >*Note: You can tweak the splitting ratios | check active_learning_pool.py*
+
+#### Active learning algorithm 
+Active learning loop was implemented following strictly this algorithm 
+Refer to paper for more insights 
+![](./docs/active%20learning%20algorithm.png)
 
 #### Training and Evaluation
 ##### Loss and Metrics
@@ -340,8 +319,24 @@ Finally, the image-level JS score is:
 $$s_i = \frac{1}{H\,W} \sum_{x=1}^H \sum_{y=1}^W \mathrm{JS}_i(x,y)$$
 
 ## Results
+### 1) Running experiemnts using 4 different seeds + no data augmentation (experiment 0)
 <p align="center">
-  <img src="./docs/myplot.png" alt="Dice Coefficient" width="80%"/>
+  <img src="./docs/deterministic%20dice%20score%20plot%20exp0.png" alt="Dice Coefficient" width="80%"/>
+</p>
+
+### 2) Running experiments using 3 different seeds + data augmentation (experiment 1)
+
+a) MCMC dice score results
+<p align="center">
+  <img src="./docs/MCMC%20dice%20score%20separate%20plots%20exp1.png" alt="MCMC Dice Score Plot" width="80%"/>
+</p>
+<p align="center">
+  <img src="./docs/MCMC%20dice%20score%20plot%20exp1.png" alt="MCMC Dice Score Plot" width="80%"/>
+</p>
+
+b) Deterministic dice score results
+<p align="center">
+  <img src="docs/deterministic%20dice%20score%20plot%20exp1.png" alt="Deterministic Dice Score Plot" width="80%"/>
 </p>
 
 ## Contact

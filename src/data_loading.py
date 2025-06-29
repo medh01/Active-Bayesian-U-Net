@@ -20,6 +20,15 @@ TARGET_SIZE = (624, 480)         # (W, H)
 
 #Label Encoding
 def mask_encoding(arr):
+    """
+    Encodes a 3-channel RGB mask to a 1-channel class mask.
+
+    Args:
+        arr (np.ndarray): A numpy array of shape (H, W, 3) representing the RGB mask.
+
+    Returns:
+        np.ndarray: A numpy array of shape (H, W) with integer class labels.
+    """
     h, w, _ = arr.shape
     class_mask = np.zeros((h, w), dtype=np.uint8)
     for rgb, idx in Classes.items():
@@ -28,6 +37,9 @@ def mask_encoding(arr):
 
 
 class BlastocystDataset(Dataset):
+    """
+    A PyTorch Dataset for loading blastocyst images and their corresponding masks.
+    """
     def __init__(self,
                  image_dir,
                  mask_dir,
@@ -35,6 +47,15 @@ class BlastocystDataset(Dataset):
                  augment=False,
                  
                  ):
+        """
+        Initializes the BlastocystDataset.
+
+        Args:
+            image_dir (str): The directory containing the images.
+            mask_dir (str): The directory containing the masks.
+            seed (int, optional): The random seed for augmentations. Defaults to None.
+            augment (bool, optional): Whether to apply data augmentation. Defaults to False.
+        """
         self.image_dir = image_dir
         self.mask_dir  = mask_dir
         self.image_filenames = sorted(os.listdir(image_dir))
@@ -62,9 +83,21 @@ class BlastocystDataset(Dataset):
 
 
     def __len__(self):
+        """
+        Returns the number of images in the dataset.
+        """
         return len(self.image_filenames)
 
     def __getitem__(self, idx):
+        """
+        Gets the image and mask at the given index.
+
+        Args:
+            idx (int): The index of the item to retrieve.
+
+        Returns:
+            tuple: A tuple containing the image, mask, and image name.
+        """
         img_name  = self.image_filenames[idx]
         img_path  = os.path.join(self.image_dir, img_name)
 
@@ -92,14 +125,35 @@ class BlastocystDataset(Dataset):
 
 
 class UnlabeledBlastocystDataset(Dataset):
+    """
+    A PyTorch Dataset for loading unlabeled blastocyst images.
+    """
     def __init__(self, image_dir):
+        """
+        Initializes the UnlabeledBlastocystDataset.
+
+        Args:
+            image_dir (str): The directory containing the images.
+        """
         self.image_dir = image_dir
         self.image_filenames = sorted(os.listdir(image_dir))
 
     def __len__(self):
+        """
+        Returns the number of images in the dataset.
+        """
         return len(self.image_filenames)
 
     def __getitem__(self, idx):
+        """
+        Gets the image at the given index.
+
+        Args:
+            idx (int): The index of the item to retrieve.
+
+        Returns:
+            tuple: A tuple containing the image and image name.
+        """
         img_name = self.image_filenames[idx]
         img_path = os.path.join(self.image_dir, img_name)
 
@@ -111,6 +165,9 @@ class UnlabeledBlastocystDataset(Dataset):
         return img, img_name
 
 def seed_worker(worker_id):
+    """
+    Seeds the worker for reproducibility.
+    """
     worker_seed = torch.initial_seed() % 2**32
     np.random.seed(worker_seed)
     random.seed(worker_seed)
@@ -128,6 +185,25 @@ def get_loaders_active(
         num_workers=4,
         pin_memory=True,
 ):
+    """
+    Creates and returns data loaders for active learning.
+
+    Args:
+        labeled_img_dir (str): The directory for labeled images.
+        labeled_mask_dir (str): The directory for labeled masks.
+        unlabeled_img_dir (str): The directory for unlabeled images.
+        test_img_dir (str): The directory for test images.
+        test_mask_dir (str): The directory for test masks.
+        batch_size (int): The batch size.
+        seed (int, optional): The random seed. Defaults to None.
+        augment (bool, optional): Whether to apply data augmentation. Defaults to False.
+        generator (torch.Generator, optional): The random number generator for the data loader. Defaults to None.
+        num_workers (int, optional): The number of worker threads. Defaults to 4.
+        pin_memory (bool, optional): Whether to pin memory. Defaults to True.
+
+    Returns:
+        tuple: A tuple containing the labeled, unlabeled, and test data loaders.
+    """
     # 1. Labeled Dataset (with masks)
     labeled_ds = BlastocystDataset(
         image_dir=labeled_img_dir,

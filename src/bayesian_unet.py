@@ -3,17 +3,35 @@ import torch.nn as nn
 from bayesian_unet_parts import DoubleConv, Down, Up, OutConv
 
 class BayesianUNet(nn.Module):
+    """
+    A Bayesian U-Net model for image segmentation.
+
+    This model uses dropout layers in the encoder path to introduce uncertainty,
+    which is a key feature of Bayesian neural networks. The architecture consists
+    of an encoder (down-sampling path), a bottleneck, and a decoder (up-sampling path)
+    with skip connections.
+    """
     def __init__(
         self,
         in_channels: int = 1,
         out_channels: int = 4,
         features: list = [64, 128, 256, 512],
-        dropout_prob: float = 0.1
+        dropout_prob: float = 0.5
     ):
+        """
+        Initializes the Bayesian U-Net model.
+
+        Args:
+            in_channels (int): Number of input channels (e.g., 1 for grayscale, 3 for RGB).
+            out_channels (int): Number of output channels (number of classes).
+            features (list): A list of integers specifying the number of features
+                             at each level of the Bayesian U-Net.
+            dropout_prob (float): The dropout probability to be used in the Down blocks.
+        """
         super().__init__()
 
         # 1) Initial DoubleConv (no pooling yet)
-        self.init_conv = DoubleConv(in_channels, features[0])  # 3 → 64
+        self.init_conv = DoubleConv(in_channels, features[0])  # 1 → 64
 
         # 2) Three Down blocks (producing skip1, skip2, skip3):
         self.down1 = Down(features[0], features[1], dropout_prob=dropout_prob)  # 64 → 128
@@ -37,6 +55,15 @@ class BayesianUNet(nn.Module):
         self.out_conv = OutConv(features[0], out_channels)
 
     def forward(self, x):
+        """
+        Defines the forward pass of the Bayesian U-Net.
+
+        Args:
+            x (torch.Tensor): The input tensor of shape (N, in_channels, H, W).
+
+        Returns:
+            torch.Tensor: The output tensor (segmentation map) of shape (N, out_channels, H, W).
+        """
         # Encoder
         x0 = self.init_conv(x)   # (N, 64,  H,   W)
         x1 = self.down1(x0)      # (N,128, H/2, W/2)
@@ -54,7 +81,7 @@ class BayesianUNet(nn.Module):
         out = self.out_conv(u4)  # (N, out_channels, H, W)
         return out
 
-
+# test
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = BayesianUNet().to(device)

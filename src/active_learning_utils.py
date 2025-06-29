@@ -4,15 +4,24 @@ import random
 import torch
 from tqdm import tqdm
 
-from acquisition_functions import random_score
-
-
 def create_active_learning_pools(
         BASE_DIR,
         label_split_ratio=0.1,
         test_split_ratio=0.2,
         shuffle=True
 ):
+    """
+    Creates the initial directory structure for active learning.
+
+    Args:
+        BASE_DIR (str): The base directory where the data is located.
+        label_split_ratio (float, optional): The ratio of the data to be used as the initial labeled pool. Defaults to 0.1.
+        test_split_ratio (float, optional): The ratio of the data to be used as the test set. Defaults to 0.2.
+        shuffle (bool, optional): Whether to shuffle the data before splitting. Defaults to True.
+
+    Returns:
+        dict: A dictionary containing the paths to the created directories.
+    """
     # Create directories
     dirs = {
         'labeled_img': os.path.join(BASE_DIR, "Labeled_pool", 'labeled_images'),
@@ -74,6 +83,12 @@ def create_active_learning_pools(
     return dirs
 
 def reset_data(base_dir):
+    """
+    Resets the data by deleting the Labeled_pool, Unlabeled_pool, and Test directories.
+
+    Args:
+        base_dir (str): The base directory where the data is located.
+    """
     # Directories to remove
     dirs_to_remove = [
         os.path.join(base_dir, "Labeled_pool"),
@@ -93,6 +108,16 @@ def move_images_with_dict(
         score_dict: dict,
         num_to_move: int = 10
 ):
+    """
+    Moves images from the unlabeled pool to the labeled pool based on their scores.
+
+    Args:
+        base_dir (str): The base directory where the data is located.
+        labeled_dir (str): The name of the labeled pool directory.
+        unlabeled_dir (str): The name of the unlabeled pool directory.
+        score_dict (dict): A dictionary where the keys are image filenames and the values are their scores.
+        num_to_move (int, optional): The number of images to move. Defaults to 10.
+    """
     # Sort by descending uncertainty (most uncertain first)
     sorted_items = sorted(score_dict.items(), key=lambda x: x[1], reverse=True)
 
@@ -137,6 +162,20 @@ def move_images_with_dict(
     print(f"Moved {moved} most uncertain images from {unlabeled_dir} → {labeled_dir}.")
 
 def score_unlabeled_pool(unlabeled_loader, model, score_fn, T=8, num_classes=4, device="cuda"):
+    """
+    Scores the unlabeled pool of images using a given scoring function.
+
+    Args:
+        unlabeled_loader (torch.utils.data.DataLoader): The data loader for the unlabeled pool.
+        model (torch.nn.Module): The model to use for scoring.
+        score_fn (function): The scoring function to use.
+        T (int, optional): The number of Monte Carlo samples to use for scoring. Defaults to 8.
+        num_classes (int, optional): The number of classes. Defaults to 4.
+        device (str, optional): The device to use for scoring. Defaults to "cuda".
+
+    Returns:
+        dict: A dictionary where the keys are image filenames and the values are their scores.
+    """
     model.to(device).train()
     scores, fnames = [], []
     with torch.no_grad():

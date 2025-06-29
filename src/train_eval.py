@@ -14,6 +14,22 @@ def train_one_epoch(loader,
                     scheduler=None,          # any torch.optim.lr_scheduler.*
                     scaler=None,             # GradScaler(); will create one if None
                     num_classes=4):
+    """
+    Trains the model for one epoch.
+
+    Args:
+        loader (torch.utils.data.DataLoader): The data loader for training data.
+        model (torch.nn.Module): The model to train.
+        optimizer (torch.optim.Optimizer): The optimizer to use.
+        loss_fn (torch.nn.Module): The loss function.
+        device (str, optional): The device to train on. Defaults to "cuda".
+        scheduler (torch.optim.lr_scheduler, optional): The learning rate scheduler. Defaults to None.
+        scaler (torch.cuda.amp.GradScaler, optional): The gradient scaler for mixed-precision training. Defaults to None.
+        num_classes (int, optional): The number of classes. Defaults to 4.
+
+    Returns:
+        tuple: A tuple containing the mean loss, mean accuracy, and mean dice score.
+    """
     model.train()                            # Puts modules such as Dropout and BatchNorm into training mode
     device  = torch.device(device)
     scaler  = scaler or GradScaler()         #performance
@@ -66,6 +82,18 @@ def train_one_epoch(loader,
 
 @torch.no_grad()
 def evaluate_loader(loader, model, device="cuda", num_classes=4):
+    """
+    Evaluates the model on a given data loader.
+
+    Args:
+        loader (torch.utils.data.DataLoader): The data loader for evaluation.
+        model (torch.nn.Module): The model to evaluate.
+        device (str, optional): The device to evaluate on. Defaults to "cuda".
+        num_classes (int, optional): The number of classes. Defaults to 4.
+
+    Returns:
+        tuple: A tuple containing the mean accuracy and mean dice score.
+    """
 
     model.eval()                               # inference mode
     device  = torch.device(device)
