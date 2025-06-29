@@ -34,7 +34,7 @@ def create_active_learning_pools(
 
     # Get image list
     img_dir = os.path.join(BASE_DIR, 'images')
-    images = [f for f in os.listdir(img_dir) if f.lower().endswith("bmp")]
+    images = sorted([f for f in os.listdir(img_dir) if f.lower().endswith("bmp")])
 
     if shuffle:
         random.shuffle(images)
