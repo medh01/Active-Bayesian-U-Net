@@ -143,6 +143,7 @@ def active_learning_loop(
         log.append({
             "round": iteration,
             "fraction": frac,
+            "deterministic_dice_score": test_dice,
             "mcmc_dice": mean_mcmc_dice,
             "mcmc_std": std_mcmc_dice
         })
