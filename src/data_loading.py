@@ -5,7 +5,8 @@ from PIL import Image, ImageOps
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from albumentations import Compose, Affine
+import cv2
+from albumentations import Compose, Affine, HorizontalFlip, VerticalFlip
 from albumentations.pytorch import ToTensorV2
 
 Classes = {
@@ -32,10 +33,7 @@ class BlastocystDataset(Dataset):
                  mask_dir,
                  seed=None,
                  augment=False,
-                 rotate_limit=30,
-                 shift_limit=0.1,
-                 scale_limit=0.2,
-                 shear_limit=20,
+                 
                  ):
         self.image_dir = image_dir
         self.mask_dir  = mask_dir
@@ -44,12 +42,17 @@ class BlastocystDataset(Dataset):
         if augment:
             self.transform = Compose([
                 Affine(
-                    rotate=rotate_limit,
-                    translate_percent=shift_limit,
-                    scale=(1 - scale_limit, 1 + scale_limit),
-                    shear=shear_limit,
+                    rotate=(-90, 90),  # Random rotation between -90 and +90 degrees
+                    translate_percent=(-0.1, 0.1),  # Shift by +/- 10%
+                    scale=(0.8, 1.2),  # Zoom by +/- 20% (0.8 to 1.2)
                     p=1.0,
+                    border_mode=cv2.BORDER_CONSTANT,
+                    fill=0,  # image‐pad with 0 → black
+                    fill_mask=3,  # mask‐pad with 3 →  background
+                    mask_interpolation=cv2.INTER_NEAREST
                 ),
+                HorizontalFlip(p=0.5),  # 50% horizontal flip
+                VerticalFlip(p=0.5),    # 50% vertical flip
                 ToTensorV2(),
             ], additional_targets={'mask': 'mask'}, seed=seed)
         else:
