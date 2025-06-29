@@ -6,6 +6,7 @@ import numpy as np
 import torch, torch.nn as nn, torch.optim as optim
 import pandas as pd
 
+
 from data_loading           import get_loaders_active
 from bayesian_unet          import BayesianUNet
 from acquisition_functions  import (random_score, entropy, BALD,
@@ -98,6 +99,7 @@ def active_learning_loop(
             dirs["unlabeled_img"],
             dirs["test_img"], dirs["test_mask"],
             batch_size,
+            seed = seed,
             augment=augment,
             generator=g,
             num_workers=4, pin_memory=True

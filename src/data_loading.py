@@ -30,6 +30,7 @@ class BlastocystDataset(Dataset):
     def __init__(self,
                  image_dir,
                  mask_dir,
+                 seed=None,
                  augment=False,
                  rotate_limit=30,
                  shift_limit=0.1,
@@ -50,11 +51,11 @@ class BlastocystDataset(Dataset):
                     p=1.0,
                 ),
                 ToTensorV2(),
-            ], additional_targets={'mask': 'mask'})
+            ], additional_targets={'mask': 'mask'}, seed=seed)
         else:
             self.transform = Compose([
                 ToTensorV2(),
-            ], additional_targets={'mask': 'mask'})
+            ], additional_targets={'mask': 'mask'}, seed=seed)
 
 
     def __len__(self):
@@ -118,6 +119,7 @@ def get_loaders_active(
         test_img_dir,
         test_mask_dir,
         batch_size,
+        seed = None,
         augment = False,
         generator=None,
         num_workers=4,
@@ -127,6 +129,7 @@ def get_loaders_active(
     labeled_ds = BlastocystDataset(
         image_dir=labeled_img_dir,
         mask_dir=labeled_mask_dir,
+        seed=seed,
         augment = augment
     )
 
@@ -139,6 +142,7 @@ def get_loaders_active(
     test_ds = BlastocystDataset(
         image_dir=test_img_dir,
         mask_dir=test_mask_dir,
+        seed=seed,
         augment = False
     )
 
