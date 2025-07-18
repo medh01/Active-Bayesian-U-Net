@@ -82,9 +82,9 @@ We merged these three binary masks into a single RGB mask with 5 classes:
 
 Below is a table showing an example blastocyst image, its three binary masks (ICM, TE, ZP), and the combined RGB mask:
 
-| Original Image | ICM Mask | TE Mask | ZP Mask |                      RGB Mask                      |
-|:--------------:|:--------:|:-------:|:-------:|:--------------------------------------------------:|
-| ![Original](examples/images/Blast_PCRM_1201754%20D5.BMP) | ![ICM](examples/GT_ICM/Blast_PCRM_1201754%20D5%20ICM_MASK.bmp) | ![TE](examples/GT_TE/Blast_PCRM_1201754%20D5%20TE_MASK.bmp) | ![ZP](examples/GT_ZP/Blast_PCRM_1201754%20D5%20ZP_MASK.bmp) | ![RGB](examples/masks/Blast_PCRM_1201754%20D5.png) |
+|                       Original Image                       |                             ICM Mask                             |                            TE Mask                            |                            ZP Mask                            |                       RGB Mask                       |
+|:----------------------------------------------------------:|:----------------------------------------------------------------:|:-------------------------------------------------------------:|:-------------------------------------------------------------:|:----------------------------------------------------:|
+| ![Original](./examples/images/Blast_PCRM_1201754%20D5.BMP) | ![ICM](./examples/GT_ICM/Blast_PCRM_1201754%20D5%20ICM_MASK.BMP) | ![TE](./examples/GT_TE/Blast_PCRM_1201754%20D5%20TE_MASK.BMP) | ![ZP](./examples/GT_ZP/Blast_PCRM_1201754%20D5%20ZP_MASK.BMP) | ![RGB](./examples/masks/Blast_PCRM_1201754%20D5.png) |
 
 
 ## Prerequisites
@@ -358,8 +358,11 @@ Finally, the image-level JS score is:
 $$s_i = \frac{1}{H\,W} \sum_{x=1}^H \sum_{y=1}^W \mathrm{JS}_i(x,y)$$
 
 ## Results
+
 ![](./docs/results plot.png)
+
 ![](./docs/results table.png)
+
 ![](./docs/results summary.png)
 
 ## Contact
