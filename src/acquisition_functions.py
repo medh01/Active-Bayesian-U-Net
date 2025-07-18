@@ -1,40 +1,33 @@
 import torch, torch.nn.functional as F
 
 def random_score(model, imgs, **kwargs):
-    """Generates random scores for acquisition.
-
-    This function assigns a random score to each image in the batch.
+    """Assigns a random score to each image in the batch.
 
     Args:
-        model (torch.nn.Module): The neural network model (not used in this function,
-                                   but included for consistency).
-        imgs (torch.Tensor): A batch of input images with shape (B, C, H, W).
-        **kwargs: Additional keyword arguments (not used).
+        model (nn.Module): The model (not used in this function, but included for API consistency).
+        imgs (torch.Tensor): The batch of input images.
+        **kwargs: Additional keyword arguments (for API consistency).
 
     Returns:
-        torch.Tensor: A tensor of random scores with shape (B,),
-                      where B is the batch size.
+        torch.Tensor: A tensor of random scores, one for each image in the batch.
     """
     return torch.rand(imgs.size(0), device=imgs.device) # Shape: (B,)
 
-def entropy(model, imgs, T=8, num_classes=4):
-    """Computes the entropy score for active learning.
+def entropy(model, imgs, T=8, num_classes=5):
+    """Calculates the predictive entropy for a batch of images.
 
-    This function calculates the predictive entropy for each image by performing
-    `T` stochastic forward passes through the model (with dropout enabled).
+    Predictive entropy is a measure of uncertainty. It is calculated by first obtaining
+    the average of multiple stochastic forward passes (Monte Carlo dropout), and then
+    computing the entropy of this averaged prediction.
 
     Args:
-        model (torch.nn.Module): The neural network model.
-        imgs (torch.Tensor): A batch of input images with shape (B, C, H, W).
-        T (int, optional): Number of Monte Carlo samples (stochastic forward passes).
-                           Defaults to 8.
-        num_classes (int, optional): The number of output classes.
-                                     Defaults to 4.
+        model (nn.Module): The model with dropout layers.
+        imgs (torch.Tensor): The batch of input images.
+        T (int, optional): The number of stochastic forward passes. Defaults to 8.
+        num_classes (int, optional): The number of classes. Defaults to 4.
 
     Returns:
-        torch.Tensor: A tensor of entropy scores with shape (B,),
-                      where B is the batch size. The score is the spatial sum
-                      of the entropy map for each image.
+        torch.Tensor: A tensor of entropy scores, one for each image in the batch.
     """
     model.train() # Keep dropout ON for stochasticity
     probs_sum = torch.zeros(
@@ -53,24 +46,20 @@ def entropy(model, imgs, T=8, num_classes=4):
 
 
 def BALD(model, imgs, T=8, num_classes=4):
-    """Computes the Bayesian Active Learning by Disagreement (BALD) score.
+    """Calculates the BALD (Bayesian Active Learning by Disagreement) score for a batch of images.
 
-    BALD quantifies the mutual information between the model predictions and the
-    model parameters, given the input. It is calculated as the difference between
-    the predictive entropy and the expected entropy.
+    BALD measures the mutual information between the model's predictions and its parameters.
+    It is calculated as the difference between the predictive entropy and the expected entropy
+    over multiple stochastic forward passes.
 
     Args:
-        model (torch.nn.Module): The neural network model.
-        imgs (torch.Tensor): A batch of input images with shape (B, C, H, W).
-        T (int, optional): Number of Monte Carlo samples (stochastic forward passes).
-                           Defaults to 8.
-        num_classes (int, optional): The number of output classes.
-                                     Defaults to 4.
+        model (nn.Module): The model with dropout layers.
+        imgs (torch.Tensor): The batch of input images.
+        T (int, optional): The number of stochastic forward passes. Defaults to 8.
+        num_classes (int, optional): The number of classes. Defaults to 4.
 
     Returns:
-        torch.Tensor: A tensor of BALD scores with shape (B,),
-                      representing the mean BALD score over the spatial dimensions
-                      for each image.
+        torch.Tensor: A tensor of BALD scores, one for each image in the batch.
     """
     model.train()
     probs_sum = torch.zeros(
@@ -110,24 +99,21 @@ def BALD(model, imgs, T=8, num_classes=4):
 
 
 def committee_kl_divergence(model, imgs, T=8, num_classes=4):
-    """Computes the Committee KL-Divergence score for active learning.
+    """Calculates the KL divergence between the deterministic and stochastic predictions.
 
-    This function calculates the Kullback-Leibler (KL) divergence between a
-    deterministic standard prediction (model.eval()) and a Monte Carlo posterior
-    average prediction (model.train() with dropout) for each image.
+    This function measures the disagreement between the model's deterministic prediction
+    (with dropout turned off) and its stochastic prediction (the average of multiple
+    forward passes with dropout turned on). A higher KL divergence indicates greater
+    model uncertainty.
 
     Args:
-        model (torch.nn.Module): The neural network model.
-        imgs (torch.Tensor): A batch of input images with shape (B, C, H, W).
-        T (int, optional): Number of Monte Carlo samples (stochastic forward passes).
-                           Defaults to 8.
-        num_classes (int, optional): The number of output classes.
-                                     Defaults to 4.
+        model (nn.Module): The model with dropout layers.
+        imgs (torch.Tensor): The batch of input images.
+        T (int, optional): The number of stochastic forward passes. Defaults to 8.
+        num_classes (int, optional): The number of classes. Defaults to 4.
 
     Returns:
-        torch.Tensor: A tensor of KL-Divergence scores with shape (B,),
-                      representing the mean KL divergence over the spatial dimensions
-                      for each image.
+        torch.Tensor: A tensor of KL divergence scores, one for each image in the batch.
     """
     B, _, H, W = imgs.shape
     device     = imgs.device
@@ -158,28 +144,20 @@ def committee_kl_divergence(model, imgs, T=8, num_classes=4):
     return kl_score
 
 def committee_js_divergence(model, imgs, T=8, num_classes=4):
-    """Computes a per-image Jensen-Shannon (JS) divergence score.
+    """Calculates the Jensen-Shannon divergence between the deterministic and stochastic predictions.
 
-    The JS divergence measures the similarity between two probability distributions.
-    Here, it's computed between:
-      - `p`: The standard (deterministic) softmax prediction from the model (dropout off).
-      - `Q`: The Monte Carlo average softmax prediction over `T` stochastic forward passes (dropout on).
-
-    The JS divergence is defined as:
-    JS(p || Q) = 0.5 * KL(p || M) + 0.5 * KL(Q || M)
-    where M = 0.5 * (p + Q).
+    Similar to the KL divergence, the JS divergence measures the disagreement between the
+    model's deterministic and stochastic predictions. It is a symmetric version of the
+    KL divergence and is always finite.
 
     Args:
-        model (torch.nn.Module): The neural network model.
-        imgs (torch.Tensor): A batch of input images with shape (B, C, H, W).
-        T (int, optional): Number of Monte Carlo samples (stochastic forward passes).
-                           Defaults to 8.
-        num_classes (int, optional): The number of output classes.
-                                     Defaults to 4.
+        model (nn.Module): The model with dropout layers.
+        imgs (torch.Tensor): The batch of input images.
+        T (int, optional): The number of stochastic forward passes. Defaults to 8.
+        num_classes (int, optional): The number of classes. Defaults to 4.
 
     Returns:
-        torch.Tensor: A tensor of JS-Divergence scores with shape (B,),
-                      representing the mean JS divergence over all pixels for each image.
+        torch.Tensor: A tensor of JS divergence scores, one for each image in the batch.
     """
     B, _, H, W = imgs.shape
     device = imgs.device
@@ -200,6 +178,7 @@ def committee_js_divergence(model, imgs, T=8, num_classes=4):
         p = F.softmax(logits, dim=1) # Shape: (B, C, H, W)
 
     # 3) Build mixture M and clamp for numerical stability
+    eps      = 1e-12
     p = torch.clamp(p, min=eps)
     Q = torch.clamp(Q, min=eps)
     M = torch.clamp(0.5 * (p + Q), min=eps)

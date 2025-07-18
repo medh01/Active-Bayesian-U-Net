@@ -10,13 +10,17 @@ def create_active_learning_pools(
         test_split_ratio=0.2,
         shuffle=True
 ):
-    """
-    Creates the initial directory structure for active learning.
+    """Creates directories and splits data into labeled, unlabeled, and test pools.
+
+    This function sets up the directory structure for an active learning experiment.
+    It splits the available images into training (labeled and unlabeled) and test sets
+    based on the provided ratios, and copies the corresponding images and masks into
+    the appropriate directories.
 
     Args:
-        BASE_DIR (str): The base directory where the data is located.
+        BASE_DIR (str): The base directory containing the 'images' and 'masks' folders.
         label_split_ratio (float, optional): The ratio of the data to be used as the initial labeled pool. Defaults to 0.1.
-        test_split_ratio (float, optional): The ratio of the data to be used as the test set. Defaults to 0.2.
+        test_split_ratio (float, optional): The ratio of the data to be used for the test set. Defaults to 0.2.
         shuffle (bool, optional): Whether to shuffle the data before splitting. Defaults to True.
 
     Returns:
@@ -83,11 +87,13 @@ def create_active_learning_pools(
     return dirs
 
 def reset_data(base_dir):
-    """
-    Resets the data by deleting the Labeled_pool, Unlabeled_pool, and Test directories.
+    """Removes the directories created by `create_active_learning_pools`.
+
+    This function is useful for cleaning up the directory structure and starting a new
+    experiment from scratch.
 
     Args:
-        base_dir (str): The base directory where the data is located.
+        base_dir (str): The base directory where the data pools were created.
     """
     # Directories to remove
     dirs_to_remove = [
@@ -106,17 +112,20 @@ def move_images_with_dict(
         labeled_dir: str,
         unlabeled_dir: str,
         score_dict: dict,
-        num_to_move: int = 10
+        num_to_move: int = 2
 ):
-    """
-    Moves images from the unlabeled pool to the labeled pool based on their scores.
+    """Moves a specified number of the most uncertain images from the unlabeled to the labeled pool.
+
+    This function takes a dictionary of image scores (uncertainties), sorts them in
+    descending order, and moves the top `num_to_move` images (and their corresponding
+    masks, if they exist) from the unlabeled pool to the labeled pool.
 
     Args:
-        base_dir (str): The base directory where the data is located.
+        base_dir (str): The base directory for the data pools.
         labeled_dir (str): The name of the labeled pool directory.
         unlabeled_dir (str): The name of the unlabeled pool directory.
-        score_dict (dict): A dictionary where the keys are image filenames and the values are their scores.
-        num_to_move (int, optional): The number of images to move. Defaults to 10.
+        score_dict (dict): A dictionary where keys are image filenames and values are their uncertainty scores.
+        num_to_move (int, optional): The number of images to move. Defaults to 2.
     """
     # Sort by descending uncertainty (most uncertain first)
     sorted_items = sorted(score_dict.items(), key=lambda x: x[1], reverse=True)
@@ -161,20 +170,23 @@ def move_images_with_dict(
 
     print(f"Moved {moved} most uncertain images from {unlabeled_dir} → {labeled_dir}.")
 
-def score_unlabeled_pool(unlabeled_loader, model, score_fn, T=8, num_classes=4, device="cuda"):
-    """
-    Scores the unlabeled pool of images using a given scoring function.
+def score_unlabeled_pool(unlabeled_loader, model, score_fn, T=8, num_classes=5, device="cuda"):
+    """Scores the unlabeled pool of images using a given scoring function.
+
+    This function iterates through the unlabeled data, applies the specified scoring function
+    (e.g., an acquisition function like BALD or max entropy) to each image, and returns a
+    dictionary of image filenames and their corresponding scores.
 
     Args:
-        unlabeled_loader (torch.utils.data.DataLoader): The data loader for the unlabeled pool.
-        model (torch.nn.Module): The model to use for scoring.
-        score_fn (function): The scoring function to use.
-        T (int, optional): The number of Monte Carlo samples to use for scoring. Defaults to 8.
-        num_classes (int, optional): The number of classes. Defaults to 4.
-        device (str, optional): The device to use for scoring. Defaults to "cuda".
+        unlabeled_loader (DataLoader): The data loader for the unlabeled pool.
+        model (nn.Module): The model to use for scoring.
+        score_fn (callable): The function to use for calculating the uncertainty scores.
+        T (int, optional): The number of Monte Carlo samples for stochastic forward passes. Defaults to 8.
+        num_classes (int, optional): The number of classes. Defaults to 5.
+        device (str, optional): The device to use for computation. Defaults to "cuda".
 
     Returns:
-        dict: A dictionary where the keys are image filenames and the values are their scores.
+        dict: A dictionary where keys are image filenames and values are their uncertainty scores.
     """
     model.to(device).train()
     scores, fnames = [], []

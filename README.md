@@ -5,11 +5,11 @@
 ![PyTorch](https://img.shields.io/badge/framework-PyTorch-%23EE4C2C)
 ![Python](https://img.shields.io/badge/python-3.11.11-blue)
 
-This project is an implementation of **an Active Leraning Framework based on Bayesian U-Net** to improve the segmentation of
+This project is an implementation of **an Active Learning Framework based on Bayesian U-Net** to improve the segmentation of
 **human embryo images**. The objective is to optimize **annotation** efforts while maintaining high segmentation
 performance.
 > *Note: 1*
-This implementation is based on the research paper [Active Learning with Bayesian U-Net for Efficient Semantic Image Segmentation by Isah Charles Saidu and Lehel Csató](https://doi.org/10.3390/jimaging7020037).
+This implementation is inspired from this research paper [Active Learning with Bayesian U-Net for Efficient Semantic Image Segmentation by Isah Charles Saidu and Lehel Csató](https://doi.org/10.3390/jimaging7020037).
 
 > *Note: 2*
 I highly recommend reading the paper if you are looking to dive deep into this project
@@ -38,10 +38,10 @@ Active-Bayesian-U-Net/
     ├── active_learning_loop.py  # Active Learning Pipeline implementation 
     ├── acquisition_functions.py # random, Entropy, BALD, KL-Divergence, JS-Divergence
     ├── active_learning_utils.py # resetting and creating active learning pools, scoring and moving unlabeled data
-    ├── bayesian_unet_parts.py   # DoubleConv, Down, Up, OutConv
+    ├── bayesian_unet_parts.py   # DoubleConv, Encoder, Decoder
     ├── bayesian_unet.py         # Bayesian U-Net implementation
     ├── train_eval.py            # train and evaluate one epoch
-    ├── metrics.py               # Evaluation metrics (Dice, accuracy)
+    ├── metrics.py               # custom loss functions (Tversky Loss) and Evaluation metrics (Dice, accuracy)
     ├── data_loading.py          # Preprocessing and Loading the Blastocyst Data
     
 └── .gitignore
@@ -49,8 +49,6 @@ Active-Bayesian-U-Net/
 └── README.md
 
 ```
-
-> *Note: Update file names as needed to match your codebase.*
 
 ## Dependency Graph
 
@@ -65,21 +63,28 @@ Active-Bayesian-U-Net/
 The original dataset consisted of four folders:
 
 - `images/`: original grayscale blastocyst images  
-- `ICM_MASK/`: binary mask for Inner Cell Mass  
-- `TE_MASK/`: binary mask for Trophectoderm  
-- `GT_MASK/`: binary mask for Zona Pellucida (Ground Truth)
+- `GT_ICM/`: binary mask for Inner Cell Mass  
+- `GT_TE/`: binary mask for Trophectoderm  
+- `GT_ZP/`: binary mask for Zona Pellucida
 
-We merged these three binary masks into a single RGB mask so that each class is colour-coded:
+We merged these three binary masks into a single RGB mask with 5 classes:
 
 - **Blue** channel: Inner Cell Mass (ICM)  
 - **Red** channel: Trophectoderm (TE)  
 - **Green** channel: Zona Pellucida (ZP)
+- **Yellow** channel: blastocoel (BL)
+- **BLack** channel: background
+
+> **Note:** We don't have an explicit blastocoel mask, so to isolate this region I:
+> 1. Filled holes in the ZP mask  
+> 2. Subtracted the ring itself to get the interior  
+> 3. Removed any overlap with the ICM and TE masks
 
 Below is a table showing an example blastocyst image, its three binary masks (ICM, TE, ZP), and the combined RGB mask:
 
-<p align="center">
-  <img src="./docs/table.png" alt="table" width="80%"/>
-</p>
+| Original Image | ICM Mask | TE Mask | ZP Mask |                      RGB Mask                      |
+|:--------------:|:--------:|:-------:|:-------:|:--------------------------------------------------:|
+| ![Original](examples/images/Blast_PCRM_1201754%20D5.BMP) | ![ICM](examples/GT_ICM/Blast_PCRM_1201754%20D5%20ICM_MASK.bmp) | ![TE](examples/GT_TE/Blast_PCRM_1201754%20D5%20TE_MASK.bmp) | ![ZP](examples/GT_ZP/Blast_PCRM_1201754%20D5%20ZP_MASK.bmp) | ![RGB](examples/masks/Blast_PCRM_1201754%20D5.png) |
 
 
 ## Prerequisites
@@ -96,7 +101,7 @@ Follow these steps in a Kaggle notebook to reproduce the experiments:
 
 2. **Clone the GitHub Repository**  
     ```bash
-    !git clone https://github.com/your-username/Active-Bayesian-U-Net.git
+    !git clone https://github.com/medh01/Active-Bayesian-U-Net.git
 
 3. **Install Dependencies**
     ```bash
@@ -161,49 +166,68 @@ I used **label encoding** to convert colour‐coded masks into integer class lab
 
 * Zona Pellucida (ZP, green channel) → 2
 
-* Background (black) → 3
+* blastocoel (BL, yellow channel) → 3 
+
+* Background (black) → 4
 
 #### Size Standardization
-To ensure all inputs share the same spatial dimensions, every grayscale image and its corresponding mask are padded (using ImageOps.pad) to a fixed size of 624×480 pixels. 
+To ensure all inputs share the same spatial dimensions, every grayscale image and its corresponding mask are padded (using ImageOps.pad) to a fixed size of 256x256 pixels. 
 This preserves the original aspect ratio, fills any extra borders with background values, and guarantees consistent tensor shapes for efficient batched training.
+
+## Bayesian U-Net
 
 ### Bayesian U-Net Architecture
 ![](docs/Bayesian%20U-Net%20architecture.png)
 
-### Active Learning Pipeline
-![](docs/active%20learning%20pipeline.png)
+### Loss and Evaluation Metrics
+> implemented in `src/metrics.py`
+* Loss function \
+The loss function plays a crucial role in updating model weights and enhancing overall accuracy.  
+However, in human embryo segmentation, we face significant class imbalance like shown in the table:
+<p align="center">
+  <img src="./docs/class%20imbalance.png" alt="Class imbalance" width="200"/>
+</p>
 
-#### Splitting the Data Pool 
-![](docs/splitting%20data.png)
+That being said, I evaluated several loss functions, including cross-entropy, weighted cross-entropy, Dice loss, Tversky loss, and their combinations to solve the problem of class imbalance. 
+I found that **a weighted cross-entropy + Tversky loss (excluding the background)** yielded the best results
 
->*Note: You can tweak the splitting ratios | check active_learning_pool.py*
+1. Wighted Cross Entropy \
+Weighted cross-entropy extends the standard cross-entropy loss by multiplying each class’s loss term by a pre-computed weight, typically the inverse of its frequency in the training set. \
+This loss was used to emphasise minority classes. 
+This way, rare classes (e.g. ICM or TE) contribute more to the total loss, so the network receives stronger gradient signals when it misclassifies them.
 
-#### Active learning algorithm 
-Active learning loop was implemented following strictly this algorithm 
-Refer to paper for more insights 
-![](./docs/active%20learning%20algorithm.png)
-
-#### Training and Evaluation
-##### Loss and Metrics
-* Loss function: **nn.CrossEntropyLoss** on class indices for 4-way segmentation.
-
-`nn.CrossEntropyLoss` computes the following for each sample:
-
-$$
-\text{Softmax: } p_j = \frac{e^{z_j}}{\sum_k e^{z_k}}
-$$
-
-$$
-\text{Negative log-likelihood: } \ell = -\ln\bigl(p_{y}\bigr)
-$$
-
-$$
-\text{Batch reduction (mean over }N\text{ samples): } 
-\mathcal{L} = \frac{1}{N}\sum_{i=1}^{N} \ell^{(i)}
-$$
+| Basic Cross Entropy                                                     | Weighted Cross Entropy                                                        |
+|:------------------------------------------------------------------------:|:----------------------------------------------------------------------------:|
+| $$\mathcal{L}_{CE} = -\sum_{c=1}^{C} y_c \,\log p_c$$                     | $$\mathcal{L}_{WCE} = -\sum_{c=1}^{C} w_c\,y_c\,\log p_c$$                     |
 
 
-* Metrics: (implemented in `src/metrics.py`):
+
+2. Tversky Loss
+
+$$\mathcal{L}_{T} = 1 \;-\; \frac{\mathrm{TP}}{\mathrm{TP} + \alpha\,\mathrm{FP} + \beta\,\mathrm{FN}}$$
+
+I chose **α = 0.3** and **β = 0.7** to make the Tversky loss penalise false negatives more than false positives.
+
+In practice, this weighting:
+
+- **Boosts recall** for small, rare structures (like the ICM) by punishing missed pixels more heavily  
+- **Reduces under-segmentation**, ensuring the model doesn’t “play it safe” and omit tiny regions  
+
+> **In a nutshell:**  
+> α < β focuses the loss on catching every positive pixel, even at the cost of a few extra false alarms.
+
+3. Combining the Two Losses
+Combining **Weighted Cross-Entropy** (WCE) with **Tversky Loss** gives two complementary strengths:
+
+**Pixel-wise balancing (WCE)**  
+- Scales each pixel’s loss by its class weight.  
+- Ensures rare classes (ICM, TE, ZP, BL) contribute strongly to the gradient, preventing the model from defaulting to the background.
+
+**Overlap-based focus (Tversky)**  
+- Directly optimises region overlap, with tunable penalties for false positives vs. false negatives.  
+- Encourages accurate boundaries and robust detection of small structures.
+
+* Metrics
 
 $$
 \text{Dice coefficient: }\quad 
@@ -218,6 +242,21 @@ $$
 \text{Pixel accuracy: }\quad 
 \mathrm{Accuracy} = \frac{\text{correct pixels}}{\text{total pixels}}
 $$
+
+> I trained a Bayesian U-Net and visualized the segmentation outputs, you can find the full Jupyter notebook in ./experiments 
+
+### Active Learning Pipeline
+![](docs/active%20learning%20pipeline.png)
+
+#### Splitting the Data Pool 
+![](docs/splitting%20data.png)
+
+>*Note: You can tweak the splitting ratios | check active_learning_pool.py*
+
+#### Active learning algorithm 
+Active learning loop was implemented following strictly this algorithm 
+Refer to paper for more insights 
+![](./docs/active%20learning%20algorithm.png)
 
 #### Acquisition Functions
 
@@ -319,25 +358,9 @@ Finally, the image-level JS score is:
 $$s_i = \frac{1}{H\,W} \sum_{x=1}^H \sum_{y=1}^W \mathrm{JS}_i(x,y)$$
 
 ## Results
-### 1) Running experiemnts using 4 different seeds + no data augmentation (experiment 0)
-<p align="center">
-  <img src="./docs/deterministic%20dice%20score%20plot%20exp0.png" alt="Dice Coefficient" width="80%"/>
-</p>
-
-### 2) Running experiments using 3 different seeds + data augmentation (experiment 1)
-
-a) MCMC dice score results
-<p align="center">
-  <img src="./docs/MCMC%20dice%20score%20separate%20plots%20exp1.png" alt="MCMC Dice Score Plot" width="80%"/>
-</p>
-<p align="center">
-  <img src="./docs/MCMC%20dice%20score%20plot%20exp1.png" alt="MCMC Dice Score Plot" width="80%"/>
-</p>
-
-b) Deterministic dice score results
-<p align="center">
-  <img src="docs/deterministic%20dice%20score%20plot%20exp1.png" alt="Deterministic Dice Score Plot" width="80%"/>
-</p>
+![](./docs/results plot.png)
+![](./docs/results table.png)
+![](./docs/results summary.png)
 
 ## Contact
 

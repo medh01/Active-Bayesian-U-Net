@@ -1,48 +1,55 @@
 import numpy as np
 from PIL import Image
 import os
+from scipy.ndimage import binary_fill_holes
 
-# Colour mapping for each structure
+# ─── Colour mapping for each structure ────────────────────────────────────────
 rgb_dict = {
-    'ICM': np.array([51,221,255], dtype=np.uint8),     # Blue
-    'TE':  np.array([250,50,83], dtype=np.uint8),      # Red
-    'ZP':  np.array([61,245,61], dtype=np.uint8),      # Green
-    'background': np.array([0, 0, 0], dtype=np.uint8)  # Black
+    'ICM':        np.array([ 51, 221, 255], dtype=np.uint8),   # Blue
+    'TE':         np.array([250,  50,  83], dtype=np.uint8),   # Red
+    'ZP':         np.array([ 61, 245,  61], dtype=np.uint8),   # Green
+    'BL': np.array([255, 245,  61], dtype=np.uint8),           # Yellow
+    'background': np.array([  0,   0,   0], dtype=np.uint8)    # Black
 }
 
-# Input directories for grayscale masks
-icm_dir = r"../data/GT_ICM"
-te_dir  = r"../data/GT_TE"
-zp_dir  = r"../data/GT_ZP"
-
-# Output directory for RGB masks
-output_dir = r"../data/masks"
+# ─── Input / output directories ──────────────────────────────────────────────
+icm_dir    = r"../data/GT_ICM"
+te_dir     = r"../data/GT_TE"
+zp_dir     = r"../data/GT_ZP"
+output_dir = r"../data/full_masks"
 os.makedirs(output_dir, exist_ok=True)
 
-# Loop over mask filenames (using ICM as base reference)
+# ─── Process each mask pair ──────────────────────────────────────────────────
 for file_name in os.listdir(icm_dir):
     if not file_name.endswith(".bmp"):
-        continue  # Skip non-mask files
+        continue
 
-    base_name = file_name.replace(" ICM_Mask.bmp", "")
+    base = file_name.replace(" ICM_Mask.bmp", "")
 
-    # Load grayscale masks as 2D arrays
-    icm_mask = np.array(Image.open(os.path.join(icm_dir, f"{base_name} ICM_Mask.bmp")).convert('L'))
-    te_mask  = np.array(Image.open(os.path.join(te_dir,  f"{base_name} TE_Mask.bmp")).convert('L'))
-    zp_mask  = np.array(Image.open(os.path.join(zp_dir,  f"{base_name} ZP_Mask.bmp")).convert('L'))
+    # 1) Load binary masks (True = mask)
+    icm_mask = (np.array(Image.open(os.path.join(icm_dir, f"{base} ICM_Mask.bmp")).convert("L")) == 255)
+    te_mask  = (np.array(Image.open(os.path.join(te_dir,  f"{base} TE_Mask.bmp")).convert("L")) == 255)
+    zp_mask  = (np.array(Image.open(os.path.join(zp_dir,  f"{base} ZP_Mask.bmp")).convert("L")) == 255)
 
-    # Initialise an empty RGB image
+    # 2) Compute blastocoel:
+    #    a) fill holes in ZP to get full interior (ring + cavity)
+    filled_zp = binary_fill_holes(zp_mask)
+    #    b) isolate only the interior (subtract the ring itself)
+    interior  = filled_zp & ~zp_mask
+    #    c) subtract ICM and TE to leave just the blastocoel
+    bc_mask   = interior & ~(icm_mask | te_mask)
+
+    # 3) Paint onto an RGB canvas
     H, W = icm_mask.shape
-    rgb_image = np.zeros((H, W, 3), dtype=np.uint8)
+    canvas = np.zeros((H, W, 3), dtype=np.uint8)
+    canvas[icm_mask] = rgb_dict['ICM']
+    canvas[te_mask]  = rgb_dict['TE']
+    canvas[zp_mask]  = rgb_dict['ZP']
+    canvas[bc_mask]  = rgb_dict['BL']
+    # everything else remains black
 
-    # Apply RGB colours for each structure
-    rgb_image[icm_mask == 255] = rgb_dict['ICM']
-    rgb_image[te_mask  == 255] = rgb_dict['TE']
-    rgb_image[zp_mask  == 255] = rgb_dict['ZP']
-    # Remaining areas stay black (background)
+    # 4) Save the result
+    out_path = os.path.join(output_dir, f"{base}.png")
+    Image.fromarray(canvas).save(out_path)
 
-    # Save the final RGB mask
-    out_path = os.path.join(output_dir, f"{base_name}.png")
-    Image.fromarray(rgb_image).save(out_path)
-
-print("RGB segmentation masks successfully generated")
+print("RGB segmentation masks generated successfully!")
