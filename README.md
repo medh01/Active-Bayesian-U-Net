@@ -359,11 +359,11 @@ $$s_i = \frac{1}{H\,W} \sum_{x=1}^H \sum_{y=1}^W \mathrm{JS}_i(x,y)$$
 
 ## Results
 
-![](./docs/results plot.png)
+![](./docs/results%20plot.png)
 
-![](./docs/results table.png)
+![](./docs/results%20table.png)
 
-![](./docs/results summary.png)
+![](./docs/results%20summary.png)
 
 ## Contact
 
